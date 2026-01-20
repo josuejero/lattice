@@ -1,0 +1,29 @@
+{
+  "name": "lattice",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm -C apps/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f",
+    "db:generate": "pnpm -C packages/db prisma:generate",
+    "db:migrate": "pnpm -C packages/db prisma:migrate",
+    "db:studio": "pnpm -C packages/db prisma:studio"
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "8.52.0",
+    "node-addon-api": "8.5.0",
+    "prettier": "3.7.4",
+    "prettier-plugin-tailwindcss": "0.7.2"
+  }
+}

@@ -1,0 +1,379 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Auth.js / NextAuth models (Prisma Adapter-compatible) ---
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  memberships   Membership[]
+  calendarConnections CalendarConnection[]
+  busyBlocks          BusyBlock[]
+  syncRuns            CalendarSyncRun[]
+
+  availabilityTemplates AvailabilityTemplate[]
+  availabilityOverrides AvailabilityOverride[]
+  createdSuggestionRequests SuggestionRequest[]
+  suggestionRequestAttendees SuggestionRequestAttendee[]
+  scheduledEventAttendees ScheduledEventAttendee[]
+  createdScheduledEvents ScheduledEvent[] @relation("ScheduledEventCreatedBy")
+  confirmedScheduledEvents ScheduledEvent[] @relation("ScheduledEventConfirmedBy")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- Multi-tenant placeholders (Phase 1 will use these) ---
+model Org {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  members   Membership[]
+  calendarSelections CalendarSelection[]
+  busyBlocks BusyBlock[]
+  syncRuns   CalendarSyncRun[]
+  suggestionRequests SuggestionRequest[]
+  availabilityTemplates AvailabilityTemplate[]
+  availabilityOverrides AvailabilityOverride[]
+  scheduledEvents ScheduledEvent[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  LEADER
+  MEMBER
+}
+
+// --- Phase 2: Availability ---
+
+enum AvailabilityOverrideKind {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+model AvailabilityTemplate {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  timeZone  String   @default("UTC")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org    Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  windows AvailabilityWindow[]
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+}
+
+model AvailabilityWindow {
+  id         String @id @default(cuid())
+  templateId String
+  dayOfWeek  Int    // 1=Mon ... 7=Sun (Luxon weekday)
+  startMinute Int   // 0..1439
+  endMinute   Int   // 1..1440
+
+  template AvailabilityTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([dayOfWeek])
+}
+
+enum CalendarProvider {
+  GOOGLE
+}
+
+enum CalendarConnectionStatus {
+  ACTIVE
+  REVOKED
+  ERROR
+}
+
+model CalendarConnection {
+  id                    String   @id @default(cuid())
+  userId                String
+  provider              CalendarProvider
+  scopes                String
+  encryptedRefreshToken String
+  status                CalendarConnectionStatus @default(ACTIVE)
+  lastSyncAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selections CalendarSelection[]
+  syncRuns   CalendarSyncRun[]
+
+  @@unique([userId, provider])
+}
+
+model CalendarSelection {
+  id             String   @id @default(cuid())
+  connectionId   String
+  orgId          String
+  calendarIdHash String   // sha256(calendarId + AUTH_SECRET)
+  isBusySource   Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  org        Org               @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, orgId, calendarIdHash])
+}
+
+model BusyBlock {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  provider  CalendarProvider
+  sourceHash String // hashed, never raw IDs
+  startUtc  DateTime
+  endUtc    DateTime
+  blockHash String  @unique // sha256(userId|orgId|sourceHash|start|end)
+  createdAt DateTime @default(now())
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, userId, startUtc])
+}
+
+model CalendarSyncRun {
+  id            String   @id @default(cuid())
+  orgId         String
+  userId        String
+  connectionId  String
+  provider      CalendarProvider
+  rangeStartUtc DateTime
+  rangeEndUtc   DateTime
+  status        String   // STARTED | SUCCESS | ERROR
+  errorCode     String?
+  errorDetail   String?
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+
+  org        Org                @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, userId, startedAt])
+}
+
+model AvailabilityOverride {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  startAt   DateTime
+  endAt     DateTime
+  kind      AvailabilityOverrideKind
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, startAt])
+  @@index([userId, startAt])
+  @@index([orgId, userId, startAt])
+}
+
+model SuggestionRequest {
+  id             String   @id @default(cuid())
+  orgId          String
+  createdById    String
+  requestKey     String
+  title          String?
+  timeZone       String
+  rangeStart     DateTime
+  rangeEnd       DateTime
+  durationMinutes Int
+  stepMinutes     Int      @default(15)
+  dayStartMinute  Int      @default(480)
+  dayEndMinute    Int      @default(1200)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  org      Org                    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  attendees SuggestionRequestAttendee[]
+  candidates SuggestionCandidate[]
+  scheduledEvents ScheduledEvent[] @relation("ScheduledEventSuggestionRequest")
+
+  @@unique([orgId, requestKey])
+  @@index([orgId, createdAt])
+}
+
+model SuggestionRequestAttendee {
+  id        String @id @default(cuid())
+  requestId String
+  userId    String
+
+  request SuggestionRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, userId])
+  @@index([userId])
+}
+
+model SuggestionCandidate {
+  id               String   @id @default(cuid())
+  requestId        String
+  rank             Int
+  startAt          DateTime
+  endAt            DateTime
+  attendanceRatio  Float
+  scoreTotal         Float
+  scoreAttendance    Float
+  scoreInconvenience Float
+  scoreFairness      Float
+  availableUserIds String[]
+  missingUserIds   String[]
+  explanation      Json
+  createdAt        DateTime @default(now())
+
+  request SuggestionRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, rank])
+  @@index([startAt])
+}
+
+enum ScheduledEventStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+enum RsvpStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+}
+
+enum WriteBackStatus {
+  NOT_REQUESTED
+  PENDING
+  SUCCESS
+  ERROR
+}
+
+model ScheduledEvent {
+  id        String              @id @default(cuid())
+  orgId     String
+  org       Org                 @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  title     String
+  notes     String?
+  startUtc  DateTime
+  endUtc    DateTime
+  timeZone  String
+
+  status    ScheduledEventStatus @default(CONFIRMED)
+
+  sourceRequestId     String?
+  sourceCandidateRank Int?
+  suggestionRequest   SuggestionRequest? @relation("ScheduledEventSuggestionRequest", fields: [sourceRequestId], references: [id], onDelete: SetNull)
+
+  createdById  String
+  createdBy    User    @relation("ScheduledEventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  confirmedById String
+  confirmedBy   User   @relation("ScheduledEventConfirmedBy", fields: [confirmedById], references: [id], onDelete: Restrict)
+
+  writeBackStatus       WriteBackStatus @default(NOT_REQUESTED)
+  externalProvider      String?
+  externalCalendarId    String?
+  externalEventId       String?
+  externalEventHtmlLink String?
+  writeBackError        String?
+
+  attendees ScheduledEventAttendee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, startUtc])
+  @@unique([sourceRequestId, sourceCandidateRank])
+}
+
+model ScheduledEventAttendee {
+  id      String @id @default(cuid())
+  eventId String
+  event   ScheduledEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  rsvp RsvpStatus @default(INVITED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}

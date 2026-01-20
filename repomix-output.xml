@@ -1,0 +1,6219 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    ci.yml
+apps/
+  web/
+    public/
+      file.svg
+      globe.svg
+      next.svg
+      vercel.svg
+      window.svg
+    src/
+      app/
+        (app)/
+          availability/
+            page.tsx
+          dashboard/
+            page.tsx
+          events/
+            [eventId]/
+              page.tsx
+            page.tsx
+          integrations/
+            google-calendar-panel.tsx
+            page.tsx
+          suggestions/
+            page.tsx
+          layout.tsx
+        (auth)/
+          signin/
+            page.tsx
+        (public)/
+          page.tsx
+        api/
+          auth/
+            [...nextauth]/
+              route.ts
+          db-ping/
+            route.ts
+          health/
+            route.ts
+          integrations/
+            google/
+              callback/
+                route.ts
+          orgs/
+            [orgId]/
+              availability/
+                [userId]/
+                  route.ts
+                me/
+                  overrides/
+                    [overrideId]/
+                      route.ts
+                    route.ts
+                  template/
+                    route.ts
+              events/
+                [eventId]/
+                  writeback/
+                    google/
+                      route.ts
+                  route.ts
+                route.ts
+              integrations/
+                google/
+                  calendars/
+                    route.ts
+                  selections/
+                    route.ts
+                  start/
+                    route.ts
+                  sync/
+                    route.ts
+              members/
+                [membershipId]/
+                  route.ts
+                route.ts
+              suggestions/
+                requests/
+                  [requestId]/
+                    confirm/
+                      route.ts
+                    route.ts
+                  route.ts
+              route.ts
+            route.ts
+        favicon.ico
+        globals.css
+        layout.tsx
+      features/
+        availability/
+          AvailabilityClient.tsx
+        events/
+          WriteBackButton.tsx
+        suggestions/
+          SuggestionsClient.tsx
+      lib/
+        availability/
+          intervals.test.ts
+          intervals.ts
+          time.ts
+        crypto/
+          secretbox.ts
+        events/
+          conflicts.test.ts
+          conflicts.ts
+        google/
+          calendar.ts
+          oauth.ts
+        suggestions/
+          engine.test.ts
+          engine.ts
+        env.ts
+        guards.ts
+        org-context.ts
+        rbac.ts
+        slugify.ts
+      types/
+        next-auth.d.ts
+      auth.ts
+      middleware.ts
+    test-results/
+      .last-run.json
+    tests/
+      e2e/
+        auth-smoke.spec.ts
+        home.spec.ts
+      unit/
+        rbac.test.ts
+        smoke.test.ts
+    .gitignore
+    eslint.config.mjs
+    next.config.ts
+    package.json
+    playwright.config.ts
+    pnpm-workspace.yaml
+    postcss.config.mjs
+    README.md
+    tsconfig.json
+    vitest.config.ts
+docs/
+  adr/
+    0001-template.md
+  api.md
+  architecture.md
+  fairness-engine.md
+  threat-model.md
+packages/
+  db/
+    prisma/
+      migrations/
+        20260105215837_init/
+          migration.sql
+        20260106000452_availability_profiles/
+          migration.sql
+        20260106020655_phase4_google_calendar/
+          migration.sql
+        20260106031037_phase5_scheduled_events/
+          migration.sql
+        migration_lock.toml
+      schema.prisma
+    src/
+      index.ts
+    eslint.config.cjs
+    package.json
+    tsconfig.json
+  shared/
+    src/
+      env.ts
+      index.ts
+    eslint.config.cjs
+    package.json
+    tsconfig.json
+.env.example
+.gitignore
+.nvmrc
+.prettierignore
+.prettierrc.json
+.tool-versions
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+docker-compose.yml
+LICENSE
+package.json
+pnpm-workspace.yaml
+README.md
+SECURITY.md
+tsconfig.base.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".github/workflows/ci.yml">
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm -w lint
+
+      - name: Typecheck
+        run: pnpm -w typecheck
+
+      - name: Unit tests
+        run: pnpm -w test
+
+      - name: Build
+        run: pnpm -w build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm -C apps/web exec playwright install --with-deps
+
+      - name: E2E
+        run: pnpm -C apps/web test:e2e
+</file>
+
+<file path="apps/web/public/file.svg">
+<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+</file>
+
+<file path="apps/web/public/globe.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+</file>
+
+<file path="apps/web/public/next.svg">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+</file>
+
+<file path="apps/web/public/vercel.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+</file>
+
+<file path="apps/web/public/window.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+</file>
+
+<file path="apps/web/src/app/(app)/availability/page.tsx">
+import { redirect } from "next/navigation"
+import { auth } from "@/auth"
+import { getActiveOrgId } from "@/lib/org-context"
+import AvailabilityClient from "@/features/availability/AvailabilityClient"
+
+export default async function AvailabilityPage() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/signin")
+
+  const orgId = await getActiveOrgId()
+  if (!orgId) redirect("/dashboard")
+
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>Availability</h1>
+      <p>Set your weekly availability and add overrides for specific dates.</p>
+      <AvailabilityClient orgId={orgId} />
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/app/(app)/dashboard/page.tsx">
+import { prisma } from "@lattice/db";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { setActiveOrgId, getActiveOrgId } from "@/lib/org-context";
+import { env } from "@/lib/env";
+
+export default async function Dashboard() {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) redirect("/signin");
+
+  const orgs = await prisma.org.findMany({
+    where: { members: { some: { userId } } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, slug: true },
+  });
+
+  async function createOrg(formData: FormData) {
+    "use server";
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) redirect("/signin");
+
+    const name = String(formData.get("name") ?? "").trim();
+    if (name.length < 2) return;
+
+    const org = await prisma.org.create({
+      data: {
+        name,
+        slug: name.toLowerCase().replace(/\W+/g, "-").replace(/(^-|-$)/g, ""),
+        members: { create: { userId, role: "OWNER" } },
+      },
+      select: { id: true },
+    });
+
+    await setActiveOrgId(org.id);
+    revalidatePath("/dashboard");
+  }
+
+  async function switchOrg(formData: FormData) {
+    "use server";
+    const orgId = String(formData.get("orgId") ?? "");
+    if (!orgId) return;
+
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) redirect("/signin");
+
+    const membership = await prisma.membership.findUnique({
+      where: { orgId_userId: { orgId, userId } },
+      select: { id: true },
+    });
+
+    if (!membership) return;
+
+    await setActiveOrgId(orgId);
+    revalidatePath("/dashboard");
+  }
+
+  const activeOrgId = await getActiveOrgId();
+
+  return (
+    <main style={{ padding: 24, display: "grid", gap: 24 }}>
+      <section style={{ display: "grid", gap: 12 }}>
+        <h1>Dashboard</h1>
+
+        <form action={switchOrg} style={{ display: "flex", gap: 8 }}>
+          <select name="orgId" defaultValue={activeOrgId ?? ""}>
+            <option value="" disabled>
+              Select an org…
+            </option>
+            {orgs.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+          <button type="submit">Switch</button>
+        </form>
+
+        <div style={{ opacity: 0.8 }}>
+          Active org: <code>{activeOrgId ?? "(none)"}</code>
+        </div>
+      </section>
+
+      <section>
+        <a href="/availability">Availability</a>
+      </section>
+
+      <section style={{ display: "grid", gap: 12, maxWidth: 520 }}>
+        <h2>Create an org</h2>
+        <form action={createOrg} style={{ display: "flex", gap: 8 }}>
+          <input
+            name="name"
+            placeholder="e.g. Delaware DSA"
+            required
+            style={{ flex: 1, padding: 8 }}
+          />
+          <button type="submit">Create</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Your orgs</h2>
+        <ul>
+          {orgs.map((o) => (
+            <li key={o.id}>
+              {o.name} — <code>{o.slug}</code>
+            </li>
+          ))}
+          {env.SUGGESTIONS_ENABLED ? (
+            <li>
+              <a href="/suggestions">Suggestions (Phase 3)</a>
+            </li>
+          ) : null}
+          {env.EVENTS_ENABLED ? (
+            <li>
+              <a href="/events">Events (Phase 5)</a>
+            </li>
+          ) : null}
+        </ul>
+      </section>
+    </main>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/(app)/events/[eventId]/page.tsx">
+import Link from "next/link";
+
+import { prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+import { getActiveOrgId } from "@/lib/org-context";
+import { requireMembership } from "@/lib/guards";
+import { WriteBackButton } from "@/features/events/WriteBackButton";
+
+export default async function EventDetailPage(props: { params: Promise<{ eventId: string }> }) {
+  if (!env.EVENTS_ENABLED) return <div>Events are disabled.</div>;
+
+  const { eventId } = await props.params;
+  const orgId = await getActiveOrgId();
+  if (!orgId) return <div>Sign in required.</div>;
+
+  const access = await requireMembership(orgId);
+  if (!access.ok) return <div>Sign in required.</div>;
+
+  const event = await prisma.scheduledEvent.findFirst({
+    where: { id: eventId, orgId },
+    include: { attendees: { include: { user: { select: { id: true, name: true, email: true } } } } },
+  });
+  if (!event) return <div>Not found.</div>;
+
+  return (
+    <div style={{ padding: 16 }}>
+      <p>
+        <Link href="/events">← Back</Link>
+      </p>
+
+      <h1>{event.title}</h1>
+      <p>
+        <strong>Time:</strong> {event.startUtc.toISOString()} → {event.endUtc.toISOString()} ({event.timeZone})
+      </p>
+
+      {event.notes ? (
+        <p>
+          <strong>Notes:</strong> {event.notes}
+        </p>
+      ) : null}
+
+      <p>
+        <strong>Write-back:</strong> {event.writeBackStatus}
+        {event.externalEventHtmlLink ? (
+          <>
+            {" "}
+            ·{" "}
+            <a href={event.externalEventHtmlLink} target="_blank" rel="noreferrer">
+              Open in Google Calendar
+            </a>
+          </>
+        ) : null}
+      </p>
+
+      {env.GCAL_WRITEBACK_ENABLED ? (
+        <div style={{ marginTop: 12 }}>
+          <WriteBackButton orgId={orgId} eventId={event.id} />
+        </div>
+      ) : null}
+
+      <h2 style={{ marginTop: 16 }}>Attendees</h2>
+      <ul>
+        {event.attendees.map((a) => (
+          <li key={a.id}>
+            {a.user.name ?? a.user.email ?? a.user.id} - <small>{a.rsvp}</small>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/(app)/events/page.tsx">
+import Link from "next/link";
+
+import { prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+import { getActiveOrgId } from "@/lib/org-context";
+import { requireMembership } from "@/lib/guards";
+
+export default async function EventsPage() {
+  if (!env.EVENTS_ENABLED) return <div>Events are disabled.</div>;
+
+  const orgId = await getActiveOrgId();
+  if (!orgId) return <div>Sign in required.</div>;
+
+  const access = await requireMembership(orgId);
+  if (!access.ok) return <div>Sign in required.</div>;
+
+  const now = new Date();
+  const events = await prisma.scheduledEvent.findMany({
+    where: { orgId, endUtc: { gte: now } },
+    orderBy: { startUtc: "asc" },
+    take: 50,
+  });
+
+  return (
+    <div style={{ padding: 16 }}>
+      <h1>Events</h1>
+      <div style={{ marginTop: 12 }}>
+        {events.length === 0 ? (
+          <p>No upcoming events yet.</p>
+        ) : (
+          <ul>
+            {events.map((e) => (
+              <li key={e.id}>
+                <Link href={`/events/${e.id}`}>{e.title}</Link>{" "}
+                <small>
+                  ({e.startUtc.toISOString()} → {e.endUtc.toISOString()})
+                </small>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/(app)/integrations/google-calendar-panel.tsx">
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+type CalendarRow = {
+  idHash: string;
+  summary: string;
+  primary: boolean;
+  accessRole: string;
+  isBusySource: boolean;
+};
+
+export function GoogleCalendarPanel({ orgId }: { orgId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<CalendarRow[]>([]);
+  const [msg, setMsg] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const selected = useMemo(() => new Set(rows.filter((r) => r.isBusySource).map((r) => r.idHash)), [rows]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/integrations/google/calendars`, { cache: "no-store" });
+      const json = await res.json();
+      setRows(json.calendars ?? []);
+    } catch {
+      setMsg("Failed to load calendars.");
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function toggle(idHash: string) {
+    setRows((prev) => prev.map((r) => (r.idHash === idHash ? { ...r, isBusySource: !r.isBusySource } : r)));
+  }
+
+  async function save() {
+    setSaving(true);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/integrations/google/selections`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ busyCalendarIdHashes: [...selected] }),
+      });
+      if (!res.ok) throw new Error("save_failed");
+      setMsg("Saved.");
+    } catch {
+      setMsg("Save failed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function sync() {
+    setSyncing(true);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/integrations/google/sync`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? "sync_failed");
+      setMsg(`Synced. Busy blocks stored: ${json.blocks ?? 0}`);
+    } catch {
+      setMsg("Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  if (loading) return <p className="text-sm text-muted-foreground">Loading calendars…</p>;
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        {rows.map((r) => (
+          <label key={r.idHash} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={r.isBusySource} onChange={() => toggle(r.idHash)} />
+            <span>
+              {r.summary}
+              {r.primary ? " (Primary)" : ""}
+            </span>
+            <span className="text-muted-foreground">· {r.accessRole}</span>
+          </label>
+        ))}
+      </div>
+
+      <div className="flex gap-3">
+        <button className="underline" onClick={save} disabled={saving}>
+          {saving ? "Saving…" : "Save selections"}
+        </button>
+        <button className="underline" onClick={sync} disabled={syncing}>
+          {syncing ? "Syncing…" : "Sync now"}
+        </button>
+        <a className="underline" href={`/api/orgs/${orgId}/integrations/google/start`}>
+          Reconnect
+        </a>
+      </div>
+
+      {msg ? <p className="text-sm text-muted-foreground">{msg}</p> : null}
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/(app)/integrations/page.tsx">
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { prisma } from "@lattice/db";
+import { getActiveOrgId } from "@/lib/org-context";
+import { requireMembership } from "@/lib/guards";
+import { GoogleCalendarPanel } from "./google-calendar-panel";
+
+export default async function IntegrationsPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/signin");
+  const userId = session.user.id;
+
+  const orgId = await getActiveOrgId();
+  if (!orgId) redirect("/dashboard");
+
+  const access = await requireMembership(orgId);
+  if (!access.ok) redirect("/dashboard");
+
+  const conn = await prisma.calendarConnection.findUnique({
+    where: { userId_provider: { userId, provider: "GOOGLE" } },
+    select: { status: true, lastSyncAt: true },
+  });
+
+  const connected = !!conn && conn.status === "ACTIVE";
+
+  return (
+    <main className="mx-auto max-w-3xl p-6 space-y-6">
+      <h1 className="text-2xl font-semibold">Integrations</h1>
+
+      <section className="rounded-xl border p-4 space-y-3">
+        <h2 className="text-xl font-medium">Google Calendar</h2>
+
+        {!connected ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Import busy time ranges only (no event titles). Busy blocks will be treated as hard “unavailable.”
+            </p>
+            <a className="underline" href={`/api/orgs/${orgId}/integrations/google/start`}>
+              Connect Google Calendar
+            </a>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Connected {conn?.lastSyncAt ? `(last sync: ${conn.lastSyncAt.toISOString()})` : "(not synced yet)"}
+            </p>
+            <GoogleCalendarPanel orgId={orgId} />
+          </>
+        )}
+      </section>
+    </main>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/(app)/suggestions/page.tsx">
+import { redirect } from "next/navigation"
+
+import { auth } from "@/auth"
+import { prisma } from "@lattice/db"
+import { getActiveOrgId } from "@/lib/org-context"
+import { roleAtLeast } from "@/lib/rbac"
+import { env } from "@/lib/env"
+import SuggestionsClient from "@/features/suggestions/SuggestionsClient"
+
+export default async function SuggestionsPage() {
+  if (!env.SUGGESTIONS_ENABLED) {
+    redirect("/dashboard")
+  }
+
+  const session = await auth()
+  if (!session?.user?.id) {
+    redirect("/signin")
+  }
+
+  const orgId = await getActiveOrgId()
+  if (!orgId) {
+    redirect("/dashboard")
+  }
+
+  // @ts-expect-error depending on session typing
+  const userId: string = (session.user as any).id
+
+  const membership = await prisma.membership.findUnique({
+    where: { orgId_userId: { orgId, userId } },
+    select: { role: true },
+  })
+
+  if (!membership || !roleAtLeast(membership.role, "LEADER")) {
+    redirect("/dashboard")
+  }
+
+  const org = await prisma.org.findUnique({
+    where: { id: orgId },
+    select: { id: true, name: true },
+  })
+
+  if (!org) {
+    redirect("/dashboard")
+  }
+
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>Suggestions</h1>
+      <p>Create a request and get ranked meeting slots based on member availability.</p>
+      <SuggestionsClient orgId={org.id} orgName={org.name} />
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/app/(app)/layout.tsx">
+import { auth, signOut } from "@/auth";
+import Link from "next/link";
+
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const session = await auth();
+
+  return (
+    <div>
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: 16,
+          borderBottom: "1px solid #e5e5e5",
+        }}
+      >
+        <Link href="/dashboard" style={{ fontWeight: 700 }}>
+          Lattice
+        </Link>
+
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <span style={{ opacity: 0.8 }}>{session?.user?.email ?? ""}</span>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/" });
+            }}
+          >
+            <button type="submit">Sign out</button>
+          </form>
+        </div>
+      </header>
+
+      {children}
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/(auth)/signin/page.tsx">
+import { signIn } from "@/auth";
+
+export default function SignInPage() {
+  return (
+    <main style={{ padding: 24, maxWidth: 480 }}>
+      <h1>Sign in</h1>
+
+      <form
+        action={async (formData) => {
+          "use server";
+          const email = String(formData.get("email") ?? "");
+          await signIn("credentials", { email, redirectTo: "/dashboard" });
+        }}
+        style={{ display: "grid", gap: 12, marginTop: 16 }}
+      >
+        <label>
+          Email (dev/test)
+          <input
+            name="email"
+            type="email"
+            required
+            style={{ width: "100%", padding: 8, marginTop: 6 }}
+            placeholder="dev@example.com"
+          />
+        </label>
+        <button type="submit" style={{ padding: 10 }}>
+          Continue
+        </button>
+      </form>
+
+      <hr style={{ margin: "24px 0" }} />
+
+      <form
+        action={async () => {
+          "use server";
+          await signIn("google", { redirectTo: "/dashboard" });
+        }}
+      >
+        <button type="submit" style={{ padding: 10, width: "100%" }}>
+          Continue with Google
+        </button>
+      </form>
+
+      <p style={{ marginTop: 16, opacity: 0.8 }}>
+        If Google env vars are not set, the Google button will fail. Dev sign-in
+        works in non-production environments.
+      </p>
+    </main>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/(public)/page.tsx">
+export default function Home() {
+  return (
+    <main style={{ padding: 24 }}>
+      <h1>Lattice</h1>
+      <p>Privacy-respecting group scheduling — foundations.</p>
+      <p>
+        Health check: <code>/api/health</code>
+      </p>
+    </main>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/api/auth/[...nextauth]/route.ts">
+export { GET, POST } from "@/auth";
+export const runtime = "nodejs";
+</file>
+
+<file path="apps/web/src/app/api/db-ping/route.ts">
+import { prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+
+export async function GET() {
+  const result = (await prisma.$queryRawUnsafe(
+    "select now() as now"
+  )) as { now: string }[];
+  return Response.json({
+    ok: true,
+    now: result?.[0]?.now ?? null,
+    environment: env.NODE_ENV,
+  });
+}
+</file>
+
+<file path="apps/web/src/app/api/health/route.ts">
+export async function GET() {
+  return Response.json({ ok: true });
+}
+</file>
+
+<file path="apps/web/src/app/api/integrations/google/callback/route.ts">
+import { NextResponse } from "next/server";
+
+import { auth } from "@/auth";
+import { prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+import { readOauthCookie, clearOauthCookie } from "@/lib/google/oauth";
+import { encryptString } from "@/lib/crypto/secretbox";
+import { getGcalScopes } from "@/lib/google/calendar";
+
+export const runtime = "nodejs";
+
+async function exchangeToken(args: { code: string; codeVerifier: string }) {
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code: args.code,
+      client_id: env.GCAL_CLIENT_ID,
+      client_secret: env.GCAL_CLIENT_SECRET,
+      redirect_uri: env.GCAL_REDIRECT_URI,
+      grant_type: "authorization_code",
+      code_verifier: args.codeVerifier,
+    }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(`token_exchange_failed: ${JSON.stringify(json)}`);
+  return json as { refresh_token?: string; scope?: string };
+}
+
+export async function GET(req: Request) {
+  const session = await auth();
+  const url = new URL(req.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const error = url.searchParams.get("error");
+
+  const cookie = await readOauthCookie();
+  await clearOauthCookie();
+
+  if (error || !code || !state || !cookie) return NextResponse.redirect(new URL("/integrations?gcal=error", url.origin));
+
+  const expectedState = cookie["state"];
+  const verifier = cookie["verifier"];
+  const userId = cookie["userId"];
+
+  if (
+    typeof expectedState !== "string" ||
+    typeof verifier !== "string" ||
+    typeof userId !== "string" ||
+    state !== expectedState ||
+    !session?.user?.id ||
+    session.user.id !== userId
+  ) {
+    return NextResponse.redirect(new URL("/integrations?gcal=error", url.origin));
+  }
+
+  const token = await exchangeToken({ code, codeVerifier: verifier });
+  if (!token.refresh_token) return NextResponse.redirect(new URL("/integrations?gcal=no_refresh_token", url.origin));
+
+  const defaultScopes = getGcalScopes().join(" ");
+
+  await prisma.calendarConnection.upsert({
+    where: { userId_provider: { userId, provider: "GOOGLE" } },
+    update: {
+      scopes: token.scope ?? defaultScopes,
+      encryptedRefreshToken: encryptString(token.refresh_token),
+      status: "ACTIVE",
+    },
+    create: {
+      userId,
+      provider: "GOOGLE",
+      scopes: token.scope ?? defaultScopes,
+      encryptedRefreshToken: encryptString(token.refresh_token),
+      status: "ACTIVE",
+    },
+  });
+
+  return NextResponse.redirect(new URL("/integrations?gcal=connected", url.origin));
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/availability/[userId]/route.ts">
+import { NextRequest, NextResponse } from "next/server"
+
+import { prisma } from "@lattice/db"
+import { requireMembership } from "@/lib/guards"
+
+export const runtime = "nodejs"
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { orgId: string; userId: string } }
+) {
+  const { orgId, userId } = params
+
+  try {
+    const access = await requireMembership(orgId, { minRole: "LEADER", notFoundOnFail: true })
+    if (!access.ok) {
+      return NextResponse.json({ error: "forbidden" }, { status: access.status })
+    }
+
+    const template = await prisma.availabilityTemplate.findUnique({
+      where: { orgId_userId: { orgId, userId } },
+      include: { windows: true },
+    })
+
+    const overrides = await prisma.availabilityOverride.findMany({
+      where: { orgId, userId },
+      orderBy: { startAt: "asc" },
+    })
+
+    return NextResponse.json({
+      timeZone: template?.timeZone ?? "UTC",
+      windows:
+        template?.windows
+          .map((w) => ({ dayOfWeek: w.dayOfWeek, startMinute: w.startMinute, endMinute: w.endMinute }))
+          .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startMinute - b.startMinute) ?? [],
+      overrides: overrides.map((o) => ({
+        id: o.id,
+        startAt: o.startAt.toISOString(),
+        endAt: o.endAt.toISOString(),
+        kind: o.kind,
+        note: o.note,
+      })),
+    })
+  } catch (error) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/availability/me/overrides/[overrideId]/route.ts">
+import { NextRequest, NextResponse } from "next/server"
+
+import { prisma } from "@lattice/db"
+import { requireMembership } from "@/lib/guards"
+
+export const runtime = "nodejs"
+
+function respondUnauthorized() {
+  return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { orgId: string; overrideId: string } }
+) {
+  const { orgId, overrideId } = params
+
+  try {
+    const access = await requireMembership(orgId)
+    if (!access.ok) {
+      return NextResponse.json({ error: "forbidden" }, { status: access.status })
+    }
+
+    const userId = access.membership?.userId
+    if (!userId) return respondUnauthorized()
+
+    const existing = await prisma.availabilityOverride.findUnique({ where: { id: overrideId } })
+    if (!existing || existing.orgId !== orgId || existing.userId !== userId) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 })
+    }
+
+    await prisma.availabilityOverride.delete({ where: { id: overrideId } })
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    return respondUnauthorized()
+  }
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/availability/me/overrides/route.ts">
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+
+import { prisma } from "@lattice/db"
+import { requireMembership } from "@/lib/guards"
+
+export const runtime = "nodejs"
+
+const BodySchema = z
+  .object({
+    startAt: z.string().datetime(),
+    endAt: z.string().datetime(),
+    kind: z.enum(["AVAILABLE", "UNAVAILABLE"]),
+    note: z.string().max(200).optional(),
+  })
+  .refine((b) => new Date(b.startAt).getTime() < new Date(b.endAt).getTime(), "startAt must be < endAt")
+
+function respondUnauthorized() {
+  return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+}
+
+export async function GET(req: NextRequest, { params }: { params: { orgId: string } }) {
+  const orgId = params.orgId
+
+  try {
+    const access = await requireMembership(orgId, { notFoundOnFail: true })
+    if (!access.ok) {
+      return NextResponse.json({ error: "not_found" }, { status: access.status })
+    }
+
+    const userId = access.membership?.userId
+    if (!userId) return respondUnauthorized()
+
+    const url = new URL(req.url)
+    const from = url.searchParams.get("from")
+    const to = url.searchParams.get("to")
+
+    const where: any = { orgId, userId }
+    if (from || to) {
+      where.AND = []
+      if (from) where.AND.push({ endAt: { gte: new Date(from) } })
+      if (to) where.AND.push({ startAt: { lt: new Date(to) } })
+    }
+
+    const overrides = await prisma.availabilityOverride.findMany({
+      where,
+      orderBy: { startAt: "asc" },
+    })
+
+    return NextResponse.json({
+      overrides: overrides.map((o) => ({
+        id: o.id,
+        startAt: o.startAt.toISOString(),
+        endAt: o.endAt.toISOString(),
+        kind: o.kind,
+        note: o.note,
+      })),
+    })
+  } catch (error) {
+    return respondUnauthorized()
+  }
+}
+
+export async function POST(req: NextRequest, { params }: { params: { orgId: string } }) {
+  const orgId = params.orgId
+
+  try {
+    const access = await requireMembership(orgId)
+    if (!access.ok) {
+      return NextResponse.json({ error: "forbidden" }, { status: access.status })
+    }
+
+    const userId = access.membership?.userId
+    if (!userId) return respondUnauthorized()
+
+    const json = await req.json().catch(() => null)
+    const parsed = BodySchema.safeParse(json)
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid body", details: parsed.error.flatten() }, { status: 400 })
+    }
+
+    const created = await prisma.availabilityOverride.create({
+      data: {
+        orgId,
+        userId,
+        startAt: new Date(parsed.data.startAt),
+        endAt: new Date(parsed.data.endAt),
+        kind: parsed.data.kind,
+        note: parsed.data.note,
+      },
+    })
+
+    return NextResponse.json({
+      override: {
+        id: created.id,
+        startAt: created.startAt.toISOString(),
+        endAt: created.endAt.toISOString(),
+        kind: created.kind,
+        note: created.note,
+      },
+    })
+  } catch (error) {
+    return respondUnauthorized()
+  }
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/availability/me/template/route.ts">
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+
+import { prisma } from "@lattice/db"
+import { requireMembership } from "@/lib/guards"
+import { normalizeIntervals } from "@/lib/availability/intervals"
+
+export const runtime = "nodejs"
+
+const WindowSchema = z
+  .object({
+    dayOfWeek: z.number().int().min(1).max(7),
+    startMinute: z.number().int().min(0).max(1439),
+    endMinute: z.number().int().min(1).max(1440),
+  })
+  .refine((w) => w.startMinute < w.endMinute, "startMinute must be < endMinute")
+
+const BodySchema = z.object({
+  timeZone: z.string().min(1).optional(),
+  windows: z.array(WindowSchema).max(500),
+})
+
+function respondUnauthorized() {
+  return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+}
+
+export async function GET(_: NextRequest, { params }: { params: { orgId: string } }) {
+  const orgId = params.orgId
+
+  try {
+    const access = await requireMembership(orgId, { notFoundOnFail: true })
+    if (!access.ok) {
+      return NextResponse.json({ error: "not_found" }, { status: access.status })
+    }
+
+    const userId = access.membership?.userId
+    if (!userId) return respondUnauthorized()
+
+    const template = await prisma.availabilityTemplate.findUnique({
+      where: { orgId_userId: { orgId, userId } },
+      include: { windows: true },
+    })
+
+    return NextResponse.json({
+      timeZone: template?.timeZone ?? "UTC",
+      windows:
+        template?.windows
+          .map((w) => ({ dayOfWeek: w.dayOfWeek, startMinute: w.startMinute, endMinute: w.endMinute }))
+          .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startMinute - b.startMinute) ?? [],
+    })
+  } catch (error) {
+    return respondUnauthorized()
+  }
+}
+
+export async function PUT(req: NextRequest, { params }: { params: { orgId: string } }) {
+  const orgId = params.orgId
+
+  let access
+  try {
+    access = await requireMembership(orgId)
+  } catch (error) {
+    return respondUnauthorized()
+  }
+
+  if (!access.ok) {
+    return NextResponse.json({ error: "forbidden" }, { status: access.status })
+  }
+
+  const userId = access.membership?.userId
+  if (!userId) return respondUnauthorized()
+
+  const json = await req.json().catch(() => null)
+  const parsed = BodySchema.safeParse(json)
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid body", details: parsed.error.flatten() }, { status: 400 })
+  }
+
+  const timeZone = parsed.data.timeZone ?? "UTC"
+
+  const byDay = new Map<number, { start: number; end: number }[]>()
+  for (const w of parsed.data.windows) {
+    const arr = byDay.get(w.dayOfWeek) ?? []
+    arr.push({ start: w.startMinute, end: w.endMinute })
+    byDay.set(w.dayOfWeek, arr)
+  }
+
+  const normalizedWindows = [...byDay.entries()].flatMap(([dayOfWeek, intervals]) => {
+    return normalizeIntervals(intervals).map((i) => ({ dayOfWeek, startMinute: i.start, endMinute: i.end }))
+  })
+
+  const template = await prisma.availabilityTemplate.upsert({
+    where: { orgId_userId: { orgId, userId } },
+    create: {
+      orgId,
+      userId,
+      timeZone,
+      windows: { create: normalizedWindows },
+    },
+    update: {
+      timeZone,
+      windows: {
+        deleteMany: {},
+        create: normalizedWindows,
+      },
+    },
+    include: { windows: true },
+  })
+
+  return NextResponse.json({
+    timeZone: template.timeZone,
+    windows: template.windows
+      .map((w) => ({ dayOfWeek: w.dayOfWeek, startMinute: w.startMinute, endMinute: w.endMinute }))
+      .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startMinute - b.startMinute),
+  })
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/events/[eventId]/writeback/google/route.ts">
+import { NextResponse } from "next/server";
+
+import { prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+import { requireMembership } from "@/lib/guards";
+import { createGoogleCalendarEvent } from "@/lib/google/calendar";
+
+export const runtime = "nodejs";
+
+export async function POST(
+  _req: Request,
+  ctx: { params: Promise<{ orgId: string; eventId: string }> }
+) {
+  const { orgId, eventId } = await ctx.params;
+
+  if (!env.EVENTS_ENABLED || !env.GCAL_WRITEBACK_ENABLED) {
+    return NextResponse.json({ error: "disabled" }, { status: 404 });
+  }
+
+  const access = await requireMembership(orgId);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+  const userId = access.membership!.userId;
+
+  const event = await prisma.scheduledEvent.findFirst({
+    where: { id: eventId, orgId },
+    include: { attendees: { include: { user: { select: { id: true, name: true, email: true } } } } },
+  });
+  if (!event) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  const conn = await prisma.calendarConnection.findFirst({
+    where: { userId, provider: "GOOGLE", status: "ACTIVE" },
+  });
+  if (!conn) return NextResponse.json({ error: "no_connection" }, { status: 400 });
+
+  await prisma.scheduledEvent.update({
+    where: { id: event.id },
+    data: { writeBackStatus: "PENDING", externalProvider: "google", externalCalendarId: "primary" },
+  });
+
+  try {
+    if (
+      !conn.scopes?.includes("calendar.events") &&
+      !conn.scopes?.includes("https://www.googleapis.com/auth/calendar.events")
+    ) {
+      throw new Error("Missing write scope. Reconnect Google Calendar with write-back enabled.");
+    }
+
+    const attendees = event.attendees
+      .map((a) => a.user.email)
+      .filter((email): email is string => Boolean(email))
+      .map((email) => ({ email }));
+
+    const created = await createGoogleCalendarEvent({
+      refreshTokenCiphertext: conn.encryptedRefreshToken,
+      calendarId: "primary",
+      summary: event.title,
+      description: event.notes ?? undefined,
+      startISO: event.startUtc.toISOString(),
+      endISO: event.endUtc.toISOString(),
+      timeZone: event.timeZone,
+      attendees,
+      sendUpdates: "all",
+    });
+
+    await prisma.scheduledEvent.update({
+      where: { id: event.id },
+      data: {
+        writeBackStatus: "SUCCESS",
+        externalEventId: created.id ?? null,
+        externalEventHtmlLink: (created as any).htmlLink ?? null,
+        writeBackError: null,
+      },
+    });
+
+    return NextResponse.json({ ok: true, externalEventId: created.id ?? null });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await prisma.scheduledEvent.update({
+      where: { id: event.id },
+      data: { writeBackStatus: "ERROR", writeBackError: message },
+    });
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/events/[eventId]/route.ts">
+import { NextResponse } from "next/server";
+
+import { prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+import { requireMembership } from "@/lib/guards";
+
+export const runtime = "nodejs";
+
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ orgId: string; eventId: string }> }
+) {
+  const { orgId, eventId } = await ctx.params;
+
+  if (!env.EVENTS_ENABLED) return NextResponse.json({ error: "disabled" }, { status: 404 });
+
+  const access = await requireMembership(orgId);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
+  const event = await prisma.scheduledEvent.findFirst({
+    where: { id: eventId, orgId },
+    include: { attendees: { include: { user: { select: { id: true, name: true, email: true } } } } },
+  });
+
+  if (!event) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  return NextResponse.json({ event });
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/events/route.ts">
+import { NextResponse } from "next/server";
+
+import { prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+import { requireMembership } from "@/lib/guards";
+
+export const runtime = "nodejs";
+
+export async function GET(_req: Request, ctx: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await ctx.params;
+
+  if (!env.EVENTS_ENABLED) return NextResponse.json({ error: "disabled" }, { status: 404 });
+
+  const access = await requireMembership(orgId);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
+  const now = new Date();
+
+  const events = await prisma.scheduledEvent.findMany({
+    where: { orgId, endUtc: { gte: now } },
+    orderBy: { startUtc: "asc" },
+    take: 50,
+    include: { attendees: { include: { user: { select: { id: true, name: true, email: true } } } } },
+  });
+
+  return NextResponse.json({ events });
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/integrations/google/calendars/route.ts">
+import { NextResponse } from "next/server";
+import { prisma } from "@lattice/db";
+import { requireMembership } from "@/lib/guards";
+import { listCalendars, calendarIdHash } from "@/lib/google/calendar";
+
+export const runtime = "nodejs";
+
+export async function GET(_: Request, { params }: { params: { orgId: string } }) {
+  const access = await requireMembership(params.orgId);
+  if (!access.ok) return NextResponse.json({ error: "not_found" }, { status: access.status });
+
+  const userId = access.session.user.id;
+  const conn = await prisma.calendarConnection.findUnique({
+    where: { userId_provider: { userId, provider: "GOOGLE" } },
+    select: { id: true, status: true, lastSyncAt: true, encryptedRefreshToken: true },
+  });
+  if (!conn || conn.status !== "ACTIVE") return NextResponse.json({ connected: false, calendars: [] });
+
+  const selected = await prisma.calendarSelection.findMany({
+    where: { connectionId: conn.id, orgId: params.orgId, isBusySource: true },
+    select: { calendarIdHash: true },
+  });
+  const set = new Set(selected.map((s) => s.calendarIdHash));
+
+  const calendars = await listCalendars(conn.encryptedRefreshToken);
+
+  return NextResponse.json({
+    connected: true,
+    lastSyncAt: conn.lastSyncAt,
+    calendars: calendars.map((c) => {
+      const idHash = calendarIdHash(c.id);
+      return {
+        idHash,
+        summary: c.summary ?? "(untitled)",
+        primary: !!c.primary,
+        accessRole: c.accessRole ?? "unknown",
+        isBusySource: set.has(idHash),
+      };
+    }),
+  });
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/integrations/google/selections/route.ts">
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@lattice/db";
+import { requireMembership } from "@/lib/guards";
+
+export const runtime = "nodejs";
+
+const Body = z.object({ busyCalendarIdHashes: z.array(z.string().min(32)).default([]) });
+
+export async function PUT(req: Request, { params }: { params: { orgId: string } }) {
+  const access = await requireMembership(params.orgId);
+  if (!access.ok) return NextResponse.json({ error: "not_found" }, { status: access.status });
+
+  const userId = access.session.user.id;
+  const body = Body.parse(await req.json());
+
+  const conn = await prisma.calendarConnection.findUnique({
+    where: { userId_provider: { userId, provider: "GOOGLE" } },
+    select: { id: true, status: true },
+  });
+  if (!conn || conn.status !== "ACTIVE") return NextResponse.json({ error: "not_connected" }, { status: 400 });
+
+  const desired = new Set(body.busyCalendarIdHashes);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.calendarSelection.deleteMany({ where: { connectionId: conn.id, orgId: params.orgId } });
+    if (desired.size) {
+      await tx.calendarSelection.createMany({
+        data: [...desired].map((calendarIdHash) => ({
+          connectionId: conn.id,
+          orgId: params.orgId,
+          calendarIdHash,
+          isBusySource: true,
+        })),
+      });
+    }
+  });
+
+  return NextResponse.json({ ok: true });
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/integrations/google/start/route.ts">
+import { NextResponse } from "next/server";
+import crypto from "crypto";
+import { google } from "googleapis";
+
+import { env } from "@/lib/env";
+import { requireMembership } from "@/lib/guards";
+import { setOauthCookie, createPkcePair } from "@/lib/google/oauth";
+import { getGcalScopes } from "@/lib/google/calendar";
+
+export const runtime = "nodejs";
+
+export async function GET(_: Request, { params }: { params: { orgId: string } }) {
+  const access = await requireMembership(params.orgId);
+  if (!access.ok) return NextResponse.json({ error: "not_found" }, { status: access.status });
+
+  const state = crypto.randomBytes(24).toString("base64url");
+  const { verifier, challenge } = createPkcePair();
+
+  await setOauthCookie({
+    state,
+    verifier,
+    orgId: params.orgId,
+    userId: access.session.user.id,
+    createdAt: Date.now(),
+  });
+
+  const scope = getGcalScopes().join(" ");
+
+  const oauth2 = new google.auth.OAuth2(env.GCAL_CLIENT_ID, env.GCAL_CLIENT_SECRET, env.GCAL_REDIRECT_URI);
+
+  const url = oauth2.generateAuthUrl({
+    access_type: "offline",
+    include_granted_scopes: true,
+    scope,
+    prompt: "consent",
+    state,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+  });
+
+  return NextResponse.redirect(url);
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/integrations/google/sync/route.ts">
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { DateTime } from "luxon";
+
+import { prisma } from "@lattice/db";
+import { requireMembership } from "@/lib/guards";
+import {
+  listCalendars,
+  freeBusy,
+  calendarIdHash,
+  mergeUtcIntervals,
+  MERGED_SOURCE_HASH,
+  blockHash,
+} from "@/lib/google/calendar";
+
+export const runtime = "nodejs";
+
+const Body = z.object({
+  rangeStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  rangeEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  timeZone: z.string().min(1).optional(),
+});
+
+export async function POST(req: Request, { params }: { params: { orgId: string } }) {
+  const access = await requireMembership(params.orgId);
+  if (!access.ok) return NextResponse.json({ error: "not_found" }, { status: access.status });
+
+  const userId = access.session.user.id;
+  const body = Body.parse(await req.json());
+  const tz = body.timeZone ?? "UTC";
+
+  const start = DateTime.fromISO(body.rangeStart ?? DateTime.utc().toISODate()!, { zone: tz }).startOf("day").toUTC();
+  const end = DateTime.fromISO(body.rangeEnd ?? DateTime.utc().plus({ days: 30 }).toISODate()!, { zone: tz }).endOf("day").toUTC();
+
+  const conn = await prisma.calendarConnection.findUnique({
+    where: { userId_provider: { userId, provider: "GOOGLE" } },
+    select: { id: true, encryptedRefreshToken: true, status: true },
+  });
+  if (!conn || conn.status !== "ACTIVE") return NextResponse.json({ error: "not_connected" }, { status: 400 });
+
+  const selections = await prisma.calendarSelection.findMany({
+    where: { connectionId: conn.id, orgId: params.orgId, isBusySource: true },
+    select: { calendarIdHash: true },
+  });
+  const selectedHashes = new Set(selections.map((s) => s.calendarIdHash));
+  if (!selectedHashes.size) return NextResponse.json({ error: "no_calendars_selected" }, { status: 400 });
+
+  const run = await prisma.calendarSyncRun.create({
+    data: {
+      orgId: params.orgId,
+      userId,
+      connectionId: conn.id,
+      provider: "GOOGLE",
+      rangeStartUtc: start.toJSDate(),
+      rangeEndUtc: end.toJSDate(),
+      status: "STARTED",
+    },
+    select: { id: true },
+  });
+
+  try {
+    const calendars = await listCalendars(conn.encryptedRefreshToken);
+    const busyIds = calendars.filter((c) => selectedHashes.has(calendarIdHash(c.id))).map((c) => c.id);
+    if (!busyIds.length) throw new Error("selected_calendars_not_found");
+
+    const fb = await freeBusy({
+      refreshTokenCiphertext: conn.encryptedRefreshToken,
+      calendarIds: busyIds,
+      timeMinISO: start.toISO(),
+      timeMaxISO: end.toISO(),
+      timeZone: tz,
+    });
+
+    const intervals: Array<{ startUtc: Date; endUtc: Date }> = [];
+    for (const calId of busyIds) {
+      const busy = fb[calId]?.busy ?? [];
+      for (const b of busy) {
+        if (!b.start || !b.end) continue;
+        intervals.push({ startUtc: new Date(b.start), endUtc: new Date(b.end) });
+      }
+    }
+
+    const merged = mergeUtcIntervals(intervals);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.busyBlock.deleteMany({
+        where: {
+          orgId: params.orgId,
+          userId,
+          provider: "GOOGLE",
+          startUtc: { lt: end.toJSDate() },
+          endUtc: { gt: start.toJSDate() },
+        },
+      });
+
+      if (merged.length) {
+        await tx.busyBlock.createMany({
+          data: merged.map((m) => {
+            const startISO = m.startUtc.toISOString();
+            const endISO = m.endUtc.toISOString();
+            return {
+              orgId: params.orgId,
+              userId,
+              provider: "GOOGLE",
+              sourceHash: MERGED_SOURCE_HASH,
+              startUtc: m.startUtc,
+              endUtc: m.endUtc,
+              blockHash: blockHash({
+                orgId: params.orgId,
+                userId,
+                sourceHash: MERGED_SOURCE_HASH,
+                startISO,
+                endISO,
+              }),
+            };
+          }),
+          skipDuplicates: true,
+        });
+      }
+
+      await tx.calendarConnection.update({ where: { id: conn.id }, data: { lastSyncAt: new Date() } });
+      await tx.calendarSyncRun.update({ where: { id: run.id }, data: { status: "SUCCESS", finishedAt: new Date() } });
+    });
+
+    return NextResponse.json({ ok: true, blocks: merged.length });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    await prisma.calendarSyncRun.update({
+      where: { id: run.id },
+      data: {
+        status: "ERROR",
+        errorCode: "SYNC_FAILED",
+        errorDetail: detail,
+        finishedAt: new Date(),
+      },
+    });
+    return NextResponse.json({ error: "sync_failed" }, { status: 500 });
+  }
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/members/[membershipId]/route.ts">
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { prisma } from "@lattice/db";
+import { requireMembership } from "@/lib/guards";
+
+export const runtime = "nodejs";
+
+const UpdateRoleSchema = z.object({
+  role: z.enum(["OWNER", "ADMIN", "LEADER", "MEMBER"]),
+});
+
+export async function PATCH(
+  req: Request,
+  ctx: { params: Promise<{ orgId: string; membershipId: string }> }
+) {
+  const { orgId, membershipId } = await ctx.params;
+
+  const access = await requireMembership(orgId, {
+    minRole: "OWNER",
+    notFoundOnFail: true,
+  });
+  if (!access.ok) {
+    return NextResponse.json({ error: "forbidden" }, { status: access.status });
+  }
+
+  const body = await req.json().catch(() => null);
+  const parsed = UpdateRoleSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "invalid_input", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  if (parsed.data.role !== "OWNER") {
+    const target = await prisma.membership.findUnique({
+      where: { id: membershipId },
+      select: { role: true },
+    });
+
+    if (target?.role === "OWNER") {
+      const owners = await prisma.membership.count({
+        where: { orgId, role: "OWNER" },
+      });
+      if (owners <= 1) {
+        return NextResponse.json({ error: "must_have_owner" }, { status: 400 });
+      }
+    }
+  }
+
+  const updated = await prisma.membership.update({
+    where: { id: membershipId },
+    data: { role: parsed.data.role },
+    select: { id: true, role: true },
+  });
+
+  return NextResponse.json({ membership: updated });
+}
+
+export async function DELETE(
+  _req: Request,
+  ctx: { params: Promise<{ orgId: string; membershipId: string }> }
+) {
+  const { orgId, membershipId } = await ctx.params;
+
+  const access = await requireMembership(orgId, {
+    minRole: "ADMIN",
+    notFoundOnFail: true,
+  });
+  if (!access.ok) {
+    return NextResponse.json({ error: "forbidden" }, { status: access.status });
+  }
+
+  const target = await prisma.membership.findUnique({
+    where: { id: membershipId },
+    select: { role: true },
+  });
+
+  if (target?.role === "OWNER") {
+    const owners = await prisma.membership.count({
+      where: { orgId, role: "OWNER" },
+    });
+    if (owners <= 1) {
+      return NextResponse.json({ error: "must_have_owner" }, { status: 400 });
+    }
+  }
+
+  await prisma.membership.delete({ where: { id: membershipId } });
+  return NextResponse.json({ ok: true });
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/members/route.ts">
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { prisma } from "@lattice/db";
+import { requireMembership } from "@/lib/guards";
+
+export const runtime = "nodejs";
+
+const AddMemberSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(["MEMBER", "LEADER", "ADMIN"]).default("MEMBER"),
+});
+
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ orgId: string }> }
+) {
+  const { orgId } = await ctx.params;
+
+  const access = await requireMembership(orgId, { notFoundOnFail: true });
+  if (!access.ok) {
+    return NextResponse.json({ error: "not_found" }, { status: access.status });
+  }
+
+  const members = await prisma.membership.findMany({
+    where: { orgId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      role: true,
+      createdAt: true,
+      user: { select: { id: true, email: true, name: true, image: true } },
+    },
+  });
+
+  return NextResponse.json({ members });
+}
+
+export async function POST(
+  req: Request,
+  ctx: { params: Promise<{ orgId: string }> }
+) {
+  const { orgId } = await ctx.params;
+
+  const access = await requireMembership(orgId, {
+    minRole: "ADMIN",
+    notFoundOnFail: true,
+  });
+  if (!access.ok) {
+    return NextResponse.json({ error: "forbidden" }, { status: access.status });
+  }
+
+  const body = await req.json().catch(() => null);
+  const parsed = AddMemberSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "invalid_input", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const email = parsed.data.email.toLowerCase().trim();
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+
+  if (!user) {
+    return NextResponse.json({ error: "user_not_found" }, { status: 400 });
+  }
+
+  const membership = await prisma.membership.create({
+    data: {
+      orgId,
+      userId: user.id,
+      role: parsed.data.role,
+    },
+    select: { id: true, role: true },
+  });
+
+  return NextResponse.json({ membership }, { status: 201 });
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/suggestions/requests/[requestId]/confirm/route.ts">
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+import { requireMembership } from "@/lib/guards";
+import { roleAtLeast, type OrgRole } from "@/lib/rbac";
+import { createGoogleCalendarEvent } from "@/lib/google/calendar";
+import { findConflictingUserIds } from "@/lib/events/conflicts";
+
+export const runtime = "nodejs";
+
+const Body = z.object({
+  candidateRank: z.number().int().positive(),
+  title: z.string().min(1).max(140).optional(),
+  notes: z.string().max(2000).optional(),
+  writeBackToGoogle: z.boolean().optional().default(false),
+  conflictCheck: z.boolean().optional().default(true),
+});
+
+async function requireLeader(orgId: string) {
+  const access = await requireMembership(orgId);
+  if (!access.ok) return access;
+  const role = access.membership?.role as OrgRole | undefined;
+  if (!role || !roleAtLeast(role, "LEADER")) {
+    return { ok: false as const, status: 403 as const, error: "forbidden" as const };
+  }
+  return access;
+}
+
+function overlaps(start: Date, end: Date) {
+  return { startUtc: { lt: end }, endUtc: { gt: start } };
+}
+
+export async function POST(req: Request, ctx: { params: Promise<{ orgId: string; requestId: string }> }) {
+  const { orgId, requestId } = await ctx.params;
+
+  if (!env.SUGGESTIONS_ENABLED || !env.EVENTS_ENABLED) {
+    return NextResponse.json({ error: "disabled" }, { status: 404 });
+  }
+
+  const access = await requireLeader(orgId);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+  const userId = access.membership!.userId;
+
+  const body = Body.parse(await req.json());
+
+  const requestRow = await prisma.suggestionRequest.findFirst({
+    where: { id: requestId, orgId },
+    include: {
+      candidates: { where: { rank: body.candidateRank }, take: 1 },
+      attendees: { include: { user: { select: { id: true, email: true, name: true } } } },
+    },
+  });
+
+  if (!requestRow) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  const candidate = requestRow.candidates[0];
+  if (!candidate) return NextResponse.json({ error: "bad_candidate_rank" }, { status: 400 });
+
+  const startUtc = candidate.startAt;
+  const endUtc = candidate.endAt;
+  const attendeeUserIds = requestRow.attendees.map((a) => a.userId);
+
+  if (body.conflictCheck && attendeeUserIds.length) {
+    const busyConflicts = await prisma.busyBlock.findMany({
+      where: {
+        orgId,
+        userId: { in: attendeeUserIds },
+        ...overlaps(startUtc, endUtc),
+      },
+      select: { userId: true, startUtc: true, endUtc: true },
+    });
+
+    const overrideConflicts = await prisma.availabilityOverride.findMany({
+      where: {
+        orgId,
+        userId: { in: attendeeUserIds },
+        kind: "UNAVAILABLE",
+        startAt: { lt: endUtc },
+        endAt: { gt: startUtc },
+      },
+      select: { userId: true, startAt: true, endAt: true },
+    });
+
+    const conflictUserIds = findConflictingUserIds({
+      intervalStart: startUtc,
+      intervalEnd: endUtc,
+      intervals: [
+        ...busyConflicts.map((block) => ({ userId: block.userId, start: block.startUtc, end: block.endUtc })),
+        ...overrideConflicts.map((override) => ({ userId: override.userId, start: override.startAt, end: override.endAt })),
+      ],
+    });
+
+    if (conflictUserIds.length) {
+      return NextResponse.json({ error: "conflict", conflictUserIds }, { status: 409 });
+    }
+  }
+
+  const event = await prisma.$transaction(async (tx) => {
+    const existing = await tx.scheduledEvent.findFirst({
+      where: { sourceRequestId: requestId, sourceCandidateRank: body.candidateRank },
+      include: { attendees: { include: { user: { select: { id: true, email: true, name: true } } } } },
+    });
+    if (existing) return existing;
+
+    const created = await tx.scheduledEvent.create({
+      data: {
+        orgId,
+        title: body.title ?? requestRow.title ?? "Scheduled event",
+        notes: body.notes ?? null,
+        startUtc,
+        endUtc,
+        timeZone: requestRow.timeZone,
+        sourceRequestId: requestId,
+        sourceCandidateRank: body.candidateRank,
+        createdById: userId,
+        confirmedById: userId,
+      },
+    });
+
+    await tx.scheduledEventAttendee.createMany({
+      data: attendeeUserIds.map((attendeeId) => ({
+        eventId: created.id,
+        userId: attendeeId,
+        rsvp: attendeeId === userId ? "ACCEPTED" : "INVITED",
+      })),
+      skipDuplicates: true,
+    });
+
+    return tx.scheduledEvent.findUniqueOrThrow({
+      where: { id: created.id },
+      include: { attendees: { include: { user: { select: { id: true, email: true, name: true } } } } },
+    });
+  });
+
+  if (body.writeBackToGoogle && env.GCAL_WRITEBACK_ENABLED) {
+    try {
+      await prisma.scheduledEvent.update({
+        where: { id: event.id },
+        data: { writeBackStatus: "PENDING", externalProvider: "google", externalCalendarId: "primary" },
+      });
+
+      const conn = await prisma.calendarConnection.findFirst({
+        where: { userId, provider: "GOOGLE", status: "ACTIVE" },
+      });
+      if (!conn) throw new Error("No active Google Calendar connection for this user");
+
+      if (
+        !conn.scopes?.includes("calendar.events") &&
+        !conn.scopes?.includes("https://www.googleapis.com/auth/calendar.events")
+      ) {
+        throw new Error("Missing write scope. Reconnect Google Calendar with write-back enabled.");
+      }
+
+      const attendees = event.attendees
+        .map((a) => a.user.email)
+        .filter((email): email is string => Boolean(email))
+        .map((email) => ({ email }));
+
+      const created = await createGoogleCalendarEvent({
+        refreshTokenCiphertext: conn.encryptedRefreshToken,
+        calendarId: "primary",
+        summary: event.title,
+        description: event.notes ?? undefined,
+        startISO: event.startUtc.toISOString(),
+        endISO: event.endUtc.toISOString(),
+        timeZone: event.timeZone,
+        attendees,
+        sendUpdates: "all",
+      });
+
+      await prisma.scheduledEvent.update({
+        where: { id: event.id },
+        data: {
+          writeBackStatus: "SUCCESS",
+          externalEventId: created.id ?? null,
+          externalEventHtmlLink: (created as any).htmlLink ?? null,
+          writeBackError: null,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await prisma.scheduledEvent.update({
+        where: { id: event.id },
+        data: { writeBackStatus: "ERROR", writeBackError: message },
+      });
+    }
+  }
+
+  const refreshed = await prisma.scheduledEvent.findUnique({
+    where: { id: event.id },
+    include: { attendees: { include: { user: { select: { id: true, email: true, name: true } } } } },
+  });
+
+  return NextResponse.json({ event: refreshed });
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/suggestions/requests/[requestId]/route.ts">
+import { NextResponse } from "next/server"
+
+import { prisma } from "@lattice/db"
+import { requireMembership } from "@/lib/guards"
+import { env } from "@/lib/env"
+
+export const runtime = "nodejs"
+
+export async function GET(_req: Request, { params }: { params: { orgId: string; requestId: string } }) {
+  if (!env.SUGGESTIONS_ENABLED) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  const access = await requireMembership(params.orgId, { minRole: "LEADER" })
+  if (!access.ok) {
+    return NextResponse.json({ error: "not_found" }, { status: access.status })
+  }
+
+  const request = await prisma.suggestionRequest.findUnique({
+    where: { id: params.requestId },
+    include: {
+      attendees: true,
+      candidates: { orderBy: { rank: "asc" } },
+    },
+  })
+
+  if (!request || request.orgId !== params.orgId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  return NextResponse.json({ request })
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/suggestions/requests/route.ts">
+import { NextResponse } from "next/server"
+import { z } from "zod"
+import { DateTime } from "luxon"
+
+import { prisma } from "@lattice/db"
+import { requireMembership } from "@/lib/guards"
+import { parseHHMM } from "@/lib/availability/time"
+import { computeRequestKey, generateSuggestions } from "@/lib/suggestions/engine"
+import { env } from "@/lib/env"
+
+export const runtime = "nodejs"
+
+const CreateSchema = z.object({
+  title: z.string().max(80).optional(),
+  timeZone: z.string().min(1),
+  rangeStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  rangeEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  durationMinutes: z.number().int().min(15).max(240),
+  stepMinutes: z.number().int().min(5).max(60).default(15),
+  dayStart: z.string().regex(/^\d{2}:\d{2}$/).default("08:00"),
+  dayEnd: z.string().regex(/^\d{2}:\d{2}$/).default("20:00"),
+  attendeeUserIds: z.array(z.string().min(1)).min(1),
+})
+
+function ensureSortedUnique(ids: string[]) {
+  return [...new Set(ids)].sort()
+}
+
+async function requireLeader(orgId: string) {
+  const access = await requireMembership(orgId, { minRole: "LEADER" })
+  if (!access.ok) {
+    return { ok: false as const, status: access.status }
+  }
+  return { ok: true as const, membership: access.membership! }
+}
+
+export async function GET(_req: Request, { params }: { params: { orgId: string } }) {
+  if (!env.SUGGESTIONS_ENABLED) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  const access = await requireLeader(params.orgId)
+  if (!access.ok) {
+    return NextResponse.json({ error: "not_found" }, { status: access.status })
+  }
+
+  const requests = await prisma.suggestionRequest.findMany({
+    where: { orgId: access.membership.orgId },
+    orderBy: { createdAt: "desc" },
+    take: 25,
+    include: {
+      attendees: true,
+      candidates: { orderBy: { rank: "asc" }, take: 5 },
+    },
+  })
+
+  return NextResponse.json({ requests })
+}
+
+export async function POST(req: Request, { params }: { params: { orgId: string } }) {
+  if (!env.SUGGESTIONS_ENABLED) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  const access = await requireLeader(params.orgId)
+  if (!access.ok) {
+    return NextResponse.json({ error: "not_found" }, { status: access.status })
+  }
+
+  const body = CreateSchema.parse(await req.json())
+
+  const attendeeUserIds = ensureSortedUnique(body.attendeeUserIds)
+
+  const dayStartMinute = parseHHMM(body.dayStart)
+  const dayEndMinute = parseHHMM(body.dayEnd)
+  if (dayStartMinute >= dayEndMinute) {
+    return NextResponse.json({ error: "dayStart must be before dayEnd" }, { status: 400 })
+  }
+
+  const rangeStartUtc = DateTime.fromISO(body.rangeStart, { zone: body.timeZone }).startOf("day").toUTC()
+  const rangeEndUtc = DateTime.fromISO(body.rangeEnd, { zone: body.timeZone }).endOf("day").toUTC()
+
+  if (!rangeStartUtc.isValid || !rangeEndUtc.isValid || rangeStartUtc > rangeEndUtc) {
+    return NextResponse.json({ error: "Invalid date range" }, { status: 400 })
+  }
+
+  const requestKey = computeRequestKey({
+    timeZone: body.timeZone,
+    rangeStart: body.rangeStart,
+    rangeEnd: body.rangeEnd,
+    durationMinutes: body.durationMinutes,
+    stepMinutes: body.stepMinutes,
+    dayStartMinute,
+    dayEndMinute,
+    attendeeUserIds,
+  })
+
+  const templates = await prisma.availabilityTemplate.findMany({
+    where: {
+      orgId: access.membership.orgId,
+      userId: { in: attendeeUserIds },
+    },
+    include: { windows: true },
+  })
+
+  const overrides = await prisma.availabilityOverride.findMany({
+    where: {
+      orgId: access.membership.orgId,
+      userId: { in: attendeeUserIds },
+      startAt: { lt: rangeEndUtc.toJSDate() },
+      endAt: { gt: rangeStartUtc.toJSDate() },
+    },
+    orderBy: { startAt: "asc" },
+  })
+
+  const busyBlocks = await prisma.busyBlock.findMany({
+    where: {
+      orgId: access.membership.orgId,
+      userId: { in: attendeeUserIds },
+      provider: "GOOGLE",
+      startUtc: { lt: rangeEndUtc.toJSDate() },
+      endUtc: { gt: rangeStartUtc.toJSDate() },
+    },
+    orderBy: { startUtc: "asc" },
+    select: { userId: true, startUtc: true, endUtc: true },
+  })
+
+  const templateByUser = new Map(templates.map((t) => [t.userId, t] as const))
+  const overridesByUser = new Map<string, typeof overrides>()
+  for (const override of overrides) {
+    const list = overridesByUser.get(override.userId) ?? []
+    list.push(override)
+    overridesByUser.set(override.userId, list)
+  }
+
+  const attendees = attendeeUserIds.map((userId) => {
+    const template = templateByUser.get(userId)
+    const timeZone = template?.timeZone ?? body.timeZone
+
+    return {
+      userId,
+      timeZone,
+      windows:
+        template?.windows.map((window) => ({
+          dayOfWeek: window.dayOfWeek,
+          startMinute: window.startMinute,
+          endMinute: window.endMinute,
+        })) ?? [],
+      overrides: [
+        ...(overridesByUser.get(userId) ?? []).map((override) => ({
+          startAt: override.startAt.toISOString(),
+          endAt: override.endAt.toISOString(),
+          kind: override.kind,
+        })),
+        ...busyBlocks
+          .filter((b) => b.userId === userId)
+          .map((b) => ({
+            startAt: b.startUtc.toISOString(),
+            endAt: b.endUtc.toISOString(),
+            kind: "UNAVAILABLE" as const,
+          })),
+      ],
+    }
+  })
+
+  const generated = generateSuggestions({
+    timeZone: body.timeZone,
+    rangeStart: body.rangeStart,
+    rangeEnd: body.rangeEnd,
+    durationMinutes: body.durationMinutes,
+    stepMinutes: body.stepMinutes,
+    dayStartMinute,
+    dayEndMinute,
+    attendees,
+    maxCandidates: 25,
+  })
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.suggestionRequest.findUnique({
+      where: { orgId_requestKey: { orgId: access.membership.orgId, requestKey } },
+      include: { attendees: true },
+    })
+
+    const candidatesCreate = generated.map((candidate) => ({
+      rank: candidate.rank,
+      startAt: new Date(candidate.startAt),
+      endAt: new Date(candidate.endAt),
+      attendanceRatio: candidate.attendanceRatio,
+      scoreTotal: candidate.score.total,
+      scoreAttendance: candidate.score.attendance,
+      scoreInconvenience: candidate.score.inconvenience,
+      scoreFairness: candidate.score.fairness,
+      availableUserIds: candidate.availableUserIds,
+      missingUserIds: candidate.missingUserIds,
+      explanation: candidate.explanation,
+    }))
+
+    if (existing) {
+      await tx.suggestionCandidate.deleteMany({ where: { requestId: existing.id } })
+      await tx.suggestionRequestAttendee.deleteMany({ where: { requestId: existing.id } })
+
+      return tx.suggestionRequest.update({
+        where: { id: existing.id },
+        data: {
+          title: body.title,
+          timeZone: body.timeZone,
+          rangeStart: rangeStartUtc.toJSDate(),
+          rangeEnd: rangeEndUtc.toJSDate(),
+          durationMinutes: body.durationMinutes,
+          stepMinutes: body.stepMinutes,
+          dayStartMinute,
+          dayEndMinute,
+          attendees: {
+            createMany: {
+              data: attendeeUserIds.map((userId) => ({ userId })),
+            },
+          },
+          candidates: {
+            createMany: {
+              data: candidatesCreate,
+            },
+          },
+        },
+      })
+    }
+
+    return tx.suggestionRequest.create({
+      data: {
+        orgId: access.membership.orgId,
+        createdById: access.membership.userId,
+        requestKey,
+        title: body.title,
+        timeZone: body.timeZone,
+        rangeStart: rangeStartUtc.toJSDate(),
+        rangeEnd: rangeEndUtc.toJSDate(),
+        durationMinutes: body.durationMinutes,
+        stepMinutes: body.stepMinutes,
+        dayStartMinute,
+        dayEndMinute,
+        attendees: {
+          createMany: {
+            data: attendeeUserIds.map((userId) => ({ userId })),
+          },
+        },
+        candidates: {
+          createMany: {
+            data: candidatesCreate,
+          },
+        },
+      },
+    })
+  })
+
+  const hydrated = await prisma.suggestionRequest.findUnique({
+    where: { id: result.id },
+    include: {
+      attendees: true,
+      candidates: { orderBy: { rank: "asc" } },
+    },
+  })
+
+  return NextResponse.json({
+    request: {
+      id: hydrated?.id,
+      orgId: hydrated?.orgId,
+      timeZone: hydrated?.timeZone,
+      rangeStart: hydrated?.rangeStart?.toISOString(),
+      rangeEnd: hydrated?.rangeEnd?.toISOString(),
+      durationMinutes: hydrated?.durationMinutes,
+      stepMinutes: hydrated?.stepMinutes,
+      dayStartMinute: hydrated?.dayStartMinute,
+      dayEndMinute: hydrated?.dayEndMinute,
+      attendeeUserIds: hydrated?.attendees.map((item) => item.userId) ?? [],
+    },
+    candidates:
+      hydrated?.candidates.map((candidate) => ({
+        rank: candidate.rank,
+        startAt: candidate.startAt.toISOString(),
+        endAt: candidate.endAt.toISOString(),
+        attendanceRatio: candidate.attendanceRatio,
+        score: {
+          total: candidate.scoreTotal,
+          attendance: candidate.scoreAttendance,
+          inconvenience: candidate.scoreInconvenience,
+          fairness: candidate.scoreFairness,
+        },
+        availableUserIds: candidate.availableUserIds,
+        missingUserIds: candidate.missingUserIds,
+        explanation: candidate.explanation,
+      })) ?? [],
+  })
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/[orgId]/route.ts">
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { prisma } from "@lattice/db";
+import { requireMembership } from "@/lib/guards";
+
+export const runtime = "nodejs";
+
+const UpdateOrgSchema = z.object({
+  name: z.string().min(2).max(80),
+});
+
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ orgId: string }> }
+) {
+  const { orgId } = await ctx.params;
+
+  const access = await requireMembership(orgId, { notFoundOnFail: true });
+  if (!access.ok) {
+    return NextResponse.json({ error: "not_found" }, { status: access.status });
+  }
+
+  const org = await prisma.org.findUnique({
+    where: { id: orgId },
+    select: { id: true, name: true, slug: true, createdAt: true },
+  });
+
+  if (!org) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ org });
+}
+
+export async function PATCH(
+  req: Request,
+  ctx: { params: Promise<{ orgId: string }> }
+) {
+  const { orgId } = await ctx.params;
+
+  const access = await requireMembership(orgId, {
+    minRole: "ADMIN",
+    notFoundOnFail: true,
+  });
+  if (!access.ok) {
+    return NextResponse.json({ error: "forbidden" }, { status: access.status });
+  }
+
+  const body = await req.json().catch(() => null);
+  const parsed = UpdateOrgSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "invalid_input", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const org = await prisma.org.update({
+    where: { id: orgId },
+    data: { name: parsed.data.name.trim() },
+    select: { id: true, name: true, slug: true },
+  });
+
+  return NextResponse.json({ org });
+}
+
+export async function DELETE(
+  _req: Request,
+  ctx: { params: Promise<{ orgId: string }> }
+) {
+  const { orgId } = await ctx.params;
+
+  const access = await requireMembership(orgId, {
+    minRole: "OWNER",
+    notFoundOnFail: true,
+  });
+  if (!access.ok) {
+    return NextResponse.json({ error: "forbidden" }, { status: access.status });
+  }
+
+  await prisma.org.delete({ where: { id: orgId } });
+  return NextResponse.json({ ok: true });
+}
+</file>
+
+<file path="apps/web/src/app/api/orgs/route.ts">
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { prisma } from "@lattice/db";
+import { auth } from "@/auth";
+import { slugify } from "@/lib/slugify";
+
+export const runtime = "nodejs";
+
+const CreateOrgSchema = z.object({
+  name: z.string().min(2).max(80),
+});
+
+export async function GET() {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const orgs = await prisma.org.findMany({
+    where: { members: { some: { userId } } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, slug: true, createdAt: true },
+  });
+
+  return NextResponse.json({ orgs });
+}
+
+export async function POST(req: Request) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const parsed = CreateOrgSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "invalid_input", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const name = parsed.data.name.trim();
+  const base = slugify(name) || "org";
+  const slug = await allocateUniqueSlug(base);
+
+  const org = await prisma.org.create({
+    data: {
+      name,
+      slug,
+      members: { create: { userId, role: "OWNER" } },
+    },
+    select: { id: true, name: true, slug: true },
+  });
+
+  return NextResponse.json({ org }, { status: 201 });
+}
+
+async function allocateUniqueSlug(base: string) {
+  let slug = base;
+  for (let i = 0; i < 20; i++) {
+    const existing = await prisma.org.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    if (!existing) return slug;
+    slug = `${base}-${i + 2}`;
+  }
+  throw new Error("could_not_allocate_slug");
+}
+</file>
+
+<file path="apps/web/src/app/globals.css">
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+</file>
+
+<file path="apps/web/src/app/layout.tsx">
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Lattice",
+  description: "Privacy-respecting group scheduling — foundations.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        {children}
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="apps/web/src/features/availability/AvailabilityClient.tsx">
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { DateTime } from "luxon"
+import {
+  normalizeIntervals,
+  subtractIntervals,
+  unionIntervals,
+  type Interval,
+} from "@/lib/availability/intervals"
+import {
+  minutesFromTimeString,
+  timeStringFromMinutes,
+  toUtcIsoFromLocal,
+  overrideToLocalIntervalForDate,
+} from "@/lib/availability/time"
+
+type WindowDTO = { dayOfWeek: number; startMinute: number; endMinute: number }
+type OverrideDTO = {
+  id: string
+  startAt: string
+  endAt: string
+  kind: "AVAILABLE" | "UNAVAILABLE"
+  note?: string | null
+}
+
+const DAYS: { dayOfWeek: number; label: string }[] = [
+  { dayOfWeek: 1, label: "Mon" },
+  { dayOfWeek: 2, label: "Tue" },
+  { dayOfWeek: 3, label: "Wed" },
+  { dayOfWeek: 4, label: "Thu" },
+  { dayOfWeek: 5, label: "Fri" },
+  { dayOfWeek: 6, label: "Sat" },
+  { dayOfWeek: 7, label: "Sun" },
+]
+
+export default function AvailabilityClient({ orgId }: { orgId: string }) {
+  const detectedTZ = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", [])
+
+  const [timeZone, setTimeZone] = useState<string>(detectedTZ)
+  const [windows, setWindows] = useState<WindowDTO[]>([])
+  const [overrides, setOverrides] = useState<OverrideDTO[]>([])
+  const [status, setStatus] = useState<string>("")
+
+  const [previewDate, setPreviewDate] = useState<string>(() => DateTime.now().toISODate()!)
+
+  const [ovDate, setOvDate] = useState<string>(() => DateTime.now().toISODate()!)
+  const [ovStart, setOvStart] = useState<string>("09:00")
+  const [ovEnd, setOvEnd] = useState<string>("10:00")
+  const [ovKind, setOvKind] = useState<"AVAILABLE" | "UNAVAILABLE">("UNAVAILABLE")
+  const [ovNote, setOvNote] = useState<string>("")
+
+  useEffect(() => {
+    ;(async () => {
+      setStatus("Loading…")
+      const [tRes, oRes] = await Promise.all([
+        fetch(`/api/orgs/${orgId}/availability/me/template`, { cache: "no-store" }),
+        fetch(`/api/orgs/${orgId}/availability/me/overrides`, { cache: "no-store" }),
+      ])
+
+      if (tRes.ok) {
+        const t = await tRes.json()
+        setTimeZone(t.timeZone || detectedTZ)
+        setWindows(t.windows || [])
+      }
+
+      if (oRes.ok) {
+        const o = await oRes.json()
+        setOverrides(o.overrides || [])
+      }
+
+      setStatus("")
+    })()
+  }, [orgId, detectedTZ])
+
+  function addWindow(dayOfWeek: number) {
+    setWindows((w) => [...w, { dayOfWeek, startMinute: 9 * 60, endMinute: 17 * 60 }])
+  }
+
+  function updateWindow(idx: number, patch: Partial<WindowDTO>) {
+    setWindows((w) => w.map((x, i) => (i === idx ? { ...x, ...patch } : x)))
+  }
+
+  function deleteWindow(idx: number) {
+    setWindows((w) => w.filter((_, i) => i !== idx))
+  }
+
+  async function saveTemplate() {
+    setStatus("Saving…")
+    const res = await fetch(`/api/orgs/${orgId}/availability/me/template`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ timeZone, windows }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      setStatus(`Save failed: ${err?.error ?? res.status}`)
+      return
+    }
+
+    const updated = await res.json()
+    setTimeZone(updated.timeZone)
+    setWindows(updated.windows)
+    setStatus("Saved")
+    setTimeout(() => setStatus(""), 1200)
+  }
+
+  async function createOverride() {
+    setStatus("Creating override…")
+
+    const startAt = toUtcIsoFromLocal(ovDate, ovStart, timeZone)
+    const endAt = toUtcIsoFromLocal(ovDate, ovEnd, timeZone)
+
+    const res = await fetch(`/api/orgs/${orgId}/availability/me/overrides`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        startAt,
+        endAt,
+        kind: ovKind,
+        note: ovNote.trim() ? ovNote.trim() : undefined,
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      setStatus(`Create failed: ${err?.error ?? res.status}`)
+      return
+    }
+
+    const json = await res.json()
+    setOverrides((o) => [...o, json.override].sort((a, b) => a.startAt.localeCompare(b.startAt)))
+    setStatus("Override created")
+    setTimeout(() => setStatus(""), 1200)
+  }
+
+  async function deleteOverride(id: string) {
+    setStatus("Deleting override…")
+    const res = await fetch(`/api/orgs/${orgId}/availability/me/overrides/${id}`, { method: "DELETE" })
+    if (!res.ok) {
+      setStatus(`Delete failed: ${res.status}`)
+      return
+    }
+    setOverrides((o) => o.filter((x) => x.id !== id))
+    setStatus("")
+  }
+
+  const effectiveForPreview = useMemo(() => {
+    const dt = DateTime.fromISO(previewDate, { zone: timeZone })
+    const weekday = dt.weekday
+
+    const base = normalizeIntervals(
+      windows
+        .filter((w) => w.dayOfWeek === weekday)
+        .map((w) => ({ start: w.startMinute, end: w.endMinute })),
+    )
+
+    let current: Interval[] = base
+
+    for (const ov of overrides) {
+      const local = overrideToLocalIntervalForDate(ov, previewDate, timeZone)
+      if (!local) continue
+
+      if (ov.kind === "UNAVAILABLE") current = subtractIntervals(current, [local])
+      else current = unionIntervals(current, [local])
+    }
+
+    return current
+  }, [previewDate, timeZone, windows, overrides])
+
+  return (
+    <div style={{ marginTop: 16, display: "grid", gap: 16 }}>
+      {status ? (
+        <div>
+          <em>{status}</em>
+        </div>
+      ) : null}
+
+      <section style={{ border: "1px solid #333", borderRadius: 8, padding: 12 }}>
+        <h2>Weekly template</h2>
+
+        <label style={{ display: "block", marginBottom: 8 }}>
+          Time zone:&nbsp;
+          <input value={timeZone} onChange={(e) => setTimeZone(e.target.value)} style={{ width: 260 }} />
+          <span style={{ marginLeft: 8, opacity: 0.7 }}>(IANA, e.g. America/New_York)</span>
+        </label>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          {DAYS.map((d) => {
+            const dayWindows = windows
+              .map((w, idx) => ({ ...w, idx }))
+              .filter((w) => w.dayOfWeek === d.dayOfWeek)
+              .sort((a, b) => a.startMinute - b.startMinute)
+
+            return (
+              <div
+                key={d.dayOfWeek}
+                style={{ padding: 8, border: "1px solid #444", borderRadius: 8 }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <strong>{d.label}</strong>
+                  <button type="button" onClick={() => addWindow(d.dayOfWeek)}>
+                    + Add window
+                  </button>
+                </div>
+
+                {dayWindows.length === 0 ? (
+                  <div style={{ opacity: 0.7, marginTop: 6 }}>No windows</div>
+                ) : (
+                  <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+                    {dayWindows.map((w) => (
+                      <div key={w.idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input
+                          type="time"
+                          value={timeStringFromMinutes(w.startMinute)}
+                          onChange={(e) =>
+                            updateWindow(w.idx, {
+                              startMinute: minutesFromTimeString(e.target.value),
+                            })
+                          }
+                        />
+                        <span>to</span>
+                        <input
+                          type="time"
+                          value={timeStringFromMinutes(w.endMinute)}
+                          onChange={(e) =>
+                            updateWindow(w.idx, {
+                              endMinute: minutesFromTimeString(e.target.value),
+                            })
+                          }
+                        />
+                        <button type="button" onClick={() => deleteWindow(w.idx)}>
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+          <button type="button" onClick={saveTemplate}>
+            Save template
+          </button>
+        </div>
+      </section>
+
+      <section style={{ border: "1px solid #333", borderRadius: 8, padding: 12 }}>
+        <h2>Overrides</h2>
+
+        <div style={{ display: "grid", gap: 8, maxWidth: 520 }}>
+          <label>
+            Date:&nbsp;
+            <input type="date" value={ovDate} onChange={(e) => setOvDate(e.target.value)} />
+          </label>
+          <label>
+            Start:&nbsp;
+            <input type="time" value={ovStart} onChange={(e) => setOvStart(e.target.value)} />
+          </label>
+          <label>
+            End:&nbsp;
+            <input type="time" value={ovEnd} onChange={(e) => setOvEnd(e.target.value)} />
+          </label>
+          <label>
+            Kind:&nbsp;
+            <select value={ovKind} onChange={(e) => setOvKind(e.target.value as "AVAILABLE" | "UNAVAILABLE")}>
+              <option value="UNAVAILABLE">UNAVAILABLE (subtract)</option>
+              <option value="AVAILABLE">AVAILABLE (add)</option>
+            </select>
+          </label>
+          <label>
+            Note (optional):&nbsp;
+            <input value={ovNote} onChange={(e) => setOvNote(e.target.value)} />
+          </label>
+          <button type="button" onClick={createOverride}>
+            Create override
+          </button>
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          {overrides.length === 0 ? (
+            <div style={{ opacity: 0.7 }}>No overrides yet</div>
+          ) : (
+            <ul>
+              {overrides.map((o) => (
+                <li key={o.id}>
+                  <code>{o.kind}</code> {o.startAt} → {o.endAt} {o.note ? `(${o.note})` : ""}
+                  &nbsp;<button type="button" onClick={() => deleteOverride(o.id)}>
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section style={{ border: "1px solid #333", borderRadius: 8, padding: 12 }}>
+        <h2>Effective availability preview</h2>
+        <label>
+          Date:&nbsp;
+          <input type="date" value={previewDate} onChange={(e) => setPreviewDate(e.target.value)} />
+        </label>
+
+        <div style={{ marginTop: 8 }}>
+          {effectiveForPreview.length === 0 ? (
+            <div style={{ opacity: 0.7 }}>No availability</div>
+          ) : (
+            <ul>
+              {effectiveForPreview.map((i, idx) => (
+                <li key={idx}>
+                  {timeStringFromMinutes(i.start)} – {timeStringFromMinutes(i.end)} ({timeZone})
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/features/events/WriteBackButton.tsx">
+"use client"
+
+import { useState } from "react"
+
+export function WriteBackButton(props: { orgId: string; eventId: string }) {
+  const [status, setStatus] = useState<string>("idle")
+  const [error, setError] = useState<string | null>(null)
+
+  async function onClick() {
+    setStatus("loading")
+    setError(null)
+
+    const res = await fetch(`/api/orgs/${props.orgId}/events/${props.eventId}/writeback/google`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    })
+
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setStatus("error")
+      setError(json?.error ?? "writeback_failed")
+      return
+    }
+
+    setStatus("done")
+  }
+
+  return (
+    <div>
+      <button onClick={onClick} disabled={status === "loading"}>
+        {status === "loading" ? "Writing to Google..." : "Write to Google Calendar"}
+      </button>
+      {error ? <div style={{ color: "crimson", marginTop: 8 }}>{error}</div> : null}
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/features/suggestions/SuggestionsClient.tsx">
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { DateTime } from "luxon"
+
+type Member = {
+  userId: string
+  user: { name: string | null; email: string | null }
+  role: string
+}
+
+type Candidate = {
+  rank: number
+  startAt: string
+  endAt: string
+  attendanceRatio: number
+  score: { total: number; attendance: number; inconvenience: number; fairness: number }
+  availableUserIds: string[]
+  missingUserIds: string[]
+  explanation: { why: string[] }
+}
+
+export default function SuggestionsClient({ orgId, orgName }: { orgId: string; orgName: string }) {
+  const [members, setMembers] = useState<Member[]>([])
+  const [selected, setSelected] = useState<string[]>([])
+
+  const [timeZone, setTimeZone] = useState<string>(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
+  )
+  const [rangeStart, setRangeStart] = useState<string>(() => DateTime.now().toISODate() ?? "")
+  const [rangeEnd, setRangeEnd] = useState<string>(() => DateTime.now().plus({ days: 7 }).toISODate() ?? "")
+  const [durationMinutes, setDurationMinutes] = useState<number>(30)
+  const [stepMinutes, setStepMinutes] = useState<number>(15)
+  const [dayStart, setDayStart] = useState<string>("08:00")
+  const [dayEnd, setDayEnd] = useState<string>("20:00")
+  const [title, setTitle] = useState<string>("")
+
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const router = useRouter()
+  const [requestId, setRequestId] = useState<string | null>(null)
+  const [confirmingRank, setConfirmingRank] = useState<number | null>(null)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [writeBack, setWriteBack] = useState(false)
+
+  const memberById = useMemo(() => {
+    const map = new Map<string, Member>()
+    for (const member of members) {
+      map.set(member.userId, member)
+    }
+    return map
+  }, [members])
+
+  useEffect(() => {
+    ;(async () => {
+      const res = await fetch(`/api/orgs/${orgId}/members`)
+      const json = await res.json()
+      const fetched = Array.isArray(json.members) ? (json.members as Member[]) : []
+      setMembers(fetched)
+      setSelected(fetched.slice(0, 2).map((member) => member.userId))
+    })()
+  }, [orgId])
+
+  function toggleUser(userId: string) {
+    setSelected((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    )
+  }
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    setLoading(true)
+    setError(null)
+    setCandidates([])
+    setRequestId(null)
+    setConfirmError(null)
+    setConfirmingRank(null)
+
+    try {
+      const res = await fetch(`/api/orgs/${orgId}/suggestions/requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title || undefined,
+          timeZone,
+          rangeStart,
+          rangeEnd,
+          durationMinutes,
+          stepMinutes,
+          dayStart,
+          dayEnd,
+          attendeeUserIds: selected,
+        }),
+      })
+
+      const json = await res.json()
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Failed to generate suggestions")
+      }
+
+      setRequestId(json.request?.id ?? null)
+      setCandidates(Array.isArray(json.candidates) ? json.candidates : [])
+    } catch (err: any) {
+      setError(err?.message || "Unknown error")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function formatLocal(iso: string) {
+    return DateTime.fromISO(iso, { zone: "utc" }).setZone(timeZone).toFormat("ccc LLL d, t")
+  }
+
+  function nameFor(userId: string) {
+    const member = memberById.get(userId)
+    return member?.user.name || member?.user.email || userId
+  }
+
+  async function confirm(rank: number) {
+    if (!requestId) return
+    setConfirmingRank(rank)
+    setConfirmError(null)
+
+    const res = await fetch(`/api/orgs/${orgId}/suggestions/requests/${requestId}/confirm`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ candidateRank: rank, writeBackToGoogle: writeBack, conflictCheck: true }),
+    })
+
+    const json = await res.json().catch(() => ({}))
+    if (res.status === 409) {
+      setConfirmError("Conflict detected. Try a different slot or re-sync calendars.")
+      setConfirmingRank(null)
+      return
+    }
+
+    if (!res.ok || !json?.event?.id) {
+      setConfirmError(json?.error ?? "Failed to confirm.")
+      setConfirmingRank(null)
+      return
+    }
+
+    router.push(`/events/${json.event.id}`)
+  }
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <h2>New request - {orgName}</h2>
+
+      <form onSubmit={onSubmit} style={{ border: "1px solid #ddd", padding: 12, borderRadius: 8, maxWidth: 900, display: "grid", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <label>
+            Title (optional)
+            <input value={title} onChange={(event) => setTitle(event.target.value)} style={{ width: "100%" }} />
+          </label>
+
+          <label>
+            Time zone
+            <input value={timeZone} onChange={(event) => setTimeZone(event.target.value)} style={{ width: "100%" }} />
+          </label>
+
+          <label>
+            Range start
+            <input type="date" value={rangeStart} onChange={(event) => setRangeStart(event.target.value)} />
+          </label>
+
+          <label>
+            Range end
+            <input type="date" value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} />
+          </label>
+
+          <label>
+            Duration
+            <select value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))}>
+              <option value={15}>15 min</option>
+              <option value={30}>30 min</option>
+              <option value={45}>45 min</option>
+              <option value={60}>60 min</option>
+              <option value={90}>90 min</option>
+              <option value={120}>120 min</option>
+            </select>
+          </label>
+
+          <label>
+            Step
+            <select value={stepMinutes} onChange={(event) => setStepMinutes(Number(event.target.value))}>
+              <option value={5}>5 min</option>
+              <option value={10}>10 min</option>
+              <option value={15}>15 min</option>
+              <option value={30}>30 min</option>
+            </select>
+          </label>
+
+          <label>
+            Day start
+            <input type="time" value={dayStart} onChange={(event) => setDayStart(event.target.value)} />
+          </label>
+
+          <label>
+            Day end
+            <input type="time" value={dayEnd} onChange={(event) => setDayEnd(event.target.value)} />
+          </label>
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <strong>Attendees</strong>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6, marginTop: 8 }}>
+            {members.map((member) => (
+              <label key={member.userId} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="checkbox" checked={selected.includes(member.userId)} onChange={() => toggleUser(member.userId)} />
+                <span>
+                  {nameFor(member.userId)} <em style={{ opacity: 0.7 }}>({member.role})</em>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <button type="submit" disabled={loading || selected.length === 0}>
+          {loading ? "Generating..." : "Generate suggestions"}
+        </button>
+        {error ? <span style={{ color: "crimson" }}>{error}</span> : null}
+      </div>
+    </form>
+
+    <div style={{ marginTop: 12 }}>
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input type="checkbox" checked={writeBack} onChange={(event) => setWriteBack(event.target.checked)} />
+        <span>Write to Google Calendar (optional)</span>
+      </label>
+    </div>
+    {confirmError ? <p style={{ color: "crimson" }}>{confirmError}</p> : null}
+
+    <div style={{ marginTop: 24 }}>
+      <h3>Results</h3>
+      {candidates.length === 0 ? (
+        <p style={{ opacity: 0.7 }}>No results yet. Create a request to generate ranked slots.</p>
+      ) : (
+        <ol style={{ paddingLeft: 20 }}>
+          {candidates.map((candidate) => (
+            <li key={candidate.rank} style={{ marginBottom: 14 }}>
+              <div style={{ fontWeight: 600 }}>
+                #{candidate.rank}: {formatLocal(candidate.startAt)} — {formatLocal(candidate.endAt)}
+              </div>
+              <div style={{ fontSize: 13, opacity: 0.85 }}>
+                  Score: {candidate.score.total.toFixed(2)} (
+                  att {candidate.score.attendance.toFixed(2)} · inc {candidate.score.inconvenience.toFixed(2)} · fair{" "}
+                  {candidate.score.fairness.toFixed(2)})
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.85 }}>
+                  Available: {candidate.availableUserIds.length} · Missing: {candidate.missingUserIds.length}
+                </div>
+                <ul style={{ marginTop: 6 }}>
+                  {candidate.explanation?.why?.slice(0, 6).map((line, index) => (
+                    <li key={index} style={{ fontSize: 13 }}>
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+                {candidate.missingUserIds.length ? (
+                  <div style={{ fontSize: 13, marginTop: 6 }}>
+                    Missing: {candidate.missingUserIds.map((id) => nameFor(id)).join(", ")}
+                  </div>
+                ) : null}
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    onClick={() => confirm(candidate.rank)}
+                    disabled={!requestId || confirmingRank === candidate.rank}
+                  >
+                    {confirmingRank === candidate.rank ? "Confirming..." : "Confirm this slot"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="apps/web/src/lib/availability/intervals.test.ts">
+import { describe, expect, it } from "vitest"
+import { normalizeIntervals, subtractIntervals, unionIntervals } from "./intervals"
+
+describe("availability intervals", () => {
+  it("merges overlaps", () => {
+    expect(normalizeIntervals([{ start: 60, end: 120 }, { start: 110, end: 180 }])).toEqual([
+      { start: 60, end: 180 },
+    ])
+  })
+
+  it("subtracts correctly", () => {
+    expect(subtractIntervals([{ start: 60, end: 180 }], [{ start: 90, end: 120 }])).toEqual([
+      { start: 60, end: 90 },
+      { start: 120, end: 180 },
+    ])
+  })
+
+  it("unions correctly", () => {
+    expect(unionIntervals([{ start: 60, end: 90 }], [{ start: 80, end: 120 }])).toEqual([
+      { start: 60, end: 120 },
+    ])
+  })
+})
+</file>
+
+<file path="apps/web/src/lib/availability/intervals.ts">
+export type Interval = { start: number; end: number } // minutes from midnight
+
+export function clampMinute(n: number): number {
+  if (Number.isNaN(n)) return 0
+  return Math.max(0, Math.min(1440, Math.trunc(n)))
+}
+
+export function normalizeIntervals(
+  intervals: Interval[],
+  { minSize = 15 }: { minSize?: number } = {},
+): Interval[] {
+  const cleaned = intervals
+    .map((i) => ({ start: clampMinute(i.start), end: clampMinute(i.end) }))
+    .filter((i) => i.start < i.end)
+    .filter((i) => i.end - i.start >= minSize)
+    .sort((a, b) => a.start - b.start)
+
+  const merged: Interval[] = []
+  for (const cur of cleaned) {
+    const last = merged[merged.length - 1]
+    if (!last || cur.start > last.end) merged.push({ ...cur })
+    else last.end = Math.max(last.end, cur.end)
+  }
+  return merged
+}
+
+export function unionIntervals(
+  base: Interval[],
+  add: Interval[],
+  options?: { minSize?: number },
+): Interval[] {
+  return normalizeIntervals([...base, ...add], options)
+}
+
+// Subtract remove[] from base[]
+export function subtractIntervals(
+  base: Interval[],
+  remove: Interval[],
+  options?: { minSize?: number },
+): Interval[] {
+  const b = normalizeIntervals(base, options)
+  const r = normalizeIntervals(remove, options)
+  if (r.length === 0) return b
+
+  const out: Interval[] = []
+
+  for (const bi of b) {
+    let fragments: Interval[] = [bi]
+
+    for (const ri of r) {
+      const next: Interval[] = []
+      for (const f of fragments) {
+        // no overlap
+        if (ri.end <= f.start || ri.start >= f.end) {
+          next.push(f)
+          continue
+        }
+        // overlap: split
+        if (ri.start > f.start) next.push({ start: f.start, end: ri.start })
+        if (ri.end < f.end) next.push({ start: ri.end, end: f.end })
+      }
+      fragments = next
+      if (fragments.length === 0) break
+    }
+
+    out.push(...fragments)
+  }
+
+  return normalizeIntervals(out, options)
+}
+</file>
+
+<file path="apps/web/src/lib/availability/time.ts">
+import { DateTime } from "luxon"
+import type { Interval } from "./intervals"
+
+export function minutesFromTimeString(t: string): number {
+  const [hh, mm] = t.split(":").map((x) => Number(x))
+  const h = Number.isFinite(hh) ? hh : 0
+  const m = Number.isFinite(mm) ? mm : 0
+  return h * 60 + m
+}
+
+export function parseHHMM(hhmm: string) {
+  const [hourRaw, minuteRaw] = hhmm.split(":")
+  if (!hourRaw || !minuteRaw) {
+    throw new Error(`Invalid time: ${hhmm}`)
+  }
+
+  const hour = Number(hourRaw)
+  const minute = Number(minuteRaw)
+
+  if (
+    !Number.isFinite(hour) ||
+    !Number.isFinite(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    throw new Error(`Invalid time: ${hhmm}`)
+  }
+
+  return hour * 60 + minute
+}
+
+export function timeStringFromMinutes(mins: number): string {
+  const m = Math.max(0, Math.min(1439, Math.trunc(mins)))
+  const hh = String(Math.floor(m / 60)).padStart(2, "0")
+  const mm = String(m % 60).padStart(2, "0")
+  return `${hh}:${mm}`
+}
+
+export function toUtcIsoFromLocal(
+  dateISO: string,
+  timeHHMM: string,
+  timeZone: string,
+): string {
+  const [hh, mm] = timeHHMM.split(":").map((x) => Number(x))
+  const dt = DateTime.fromISO(dateISO, { zone: timeZone }).set({
+    hour: hh || 0,
+    minute: mm || 0,
+    second: 0,
+    millisecond: 0,
+  })
+  return dt.toUTC().toISO()!
+}
+
+export function overrideToLocalIntervalForDate(
+  override: { startAt: string; endAt: string },
+  dateISO: string,
+  timeZone: string,
+): Interval | null {
+  const dayStart = DateTime.fromISO(dateISO, { zone: timeZone }).startOf("day")
+  const dayEnd = dayStart.plus({ days: 1 })
+
+  const start = DateTime.fromISO(override.startAt, { zone: "utc" }).setZone(timeZone)
+  const end = DateTime.fromISO(override.endAt, { zone: "utc" }).setZone(timeZone)
+
+  const s = start < dayStart ? dayStart : start
+  const e = end > dayEnd ? dayEnd : end
+
+  if (e <= s) return null
+
+  return {
+    start: Math.floor(s.diff(dayStart, "minutes").minutes),
+    end: Math.ceil(e.diff(dayStart, "minutes").minutes),
+  }
+}
+</file>
+
+<file path="apps/web/src/lib/crypto/secretbox.ts">
+import crypto from "crypto";
+import { env } from "@/lib/env";
+
+function key(): Buffer {
+  const raw = env.TOKEN_ENC_KEY;
+  if (!raw) throw new Error("TOKEN_ENC_KEY is required for calendar integration");
+  const buf = Buffer.from(raw, "base64");
+  if (buf.length !== 32) throw new Error("TOKEN_ENC_KEY must decode to 32 bytes");
+  return buf;
+}
+
+export function encryptString(plaintext: string): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key(), iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `v1.${iv.toString("base64url")}.${tag.toString("base64url")}.${ciphertext.toString("base64url")}`;
+}
+
+export function decryptString(payload: string): string {
+  const [v, ivB64, tagB64, ctB64] = payload.split(".");
+  if (v !== "v1" || !ivB64 || !tagB64 || !ctB64) throw new Error("Bad ciphertext");
+  const iv = Buffer.from(ivB64, "base64url");
+  const tag = Buffer.from(tagB64, "base64url");
+  const ct = Buffer.from(ctB64, "base64url");
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key(), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
+}
+</file>
+
+<file path="apps/web/src/lib/events/conflicts.test.ts">
+import { test, expect } from "vitest";
+
+import { findConflictingUserIds, intervalsOverlap } from "./conflicts";
+
+test("edge intervals do not overlap when end equals start", () => {
+  const start = new Date("2025-04-01T10:00:00Z");
+  const end = new Date("2025-04-01T11:00:00Z");
+  const nextStart = new Date("2025-04-01T11:00:00Z");
+  const nextEnd = new Date("2025-04-01T12:00:00Z");
+
+  expect(intervalsOverlap(start, end, nextStart, nextEnd)).toBe(false);
+  expect(intervalsOverlap(nextStart, nextEnd, start, end)).toBe(false);
+});
+
+test("contained intervals overlap", () => {
+  const outerStart = new Date("2025-05-01T09:00:00Z");
+  const outerEnd = new Date("2025-05-01T11:00:00Z");
+  const innerStart = new Date("2025-05-01T09:30:00Z");
+  const innerEnd = new Date("2025-05-01T10:30:00Z");
+
+  expect(intervalsOverlap(outerStart, outerEnd, innerStart, innerEnd)).toBe(true);
+});
+
+test("finds conflicting users across multiple intervals", () => {
+  const intervalStart = new Date("2025-06-01T10:00:00Z");
+  const intervalEnd = new Date("2025-06-01T11:00:00Z");
+
+  const entries = [
+    { userId: "alice", start: new Date("2025-06-01T09:30:00Z"), end: new Date("2025-06-01T10:15:00Z") },
+    { userId: "bob", start: new Date("2025-06-01T10:30:00Z"), end: new Date("2025-06-01T11:30:00Z") },
+    { userId: "alice", start: new Date("2025-06-01T09:45:00Z"), end: new Date("2025-06-01T10:05:00Z") },
+    { userId: "charlie", start: new Date("2025-06-01T11:00:00Z"), end: new Date("2025-06-01T12:00:00Z") },
+  ];
+
+  const conflicts = findConflictingUserIds({ intervalStart, intervalEnd, intervals: entries });
+  expect(conflicts).toEqual(["alice", "bob"]);
+});
+</file>
+
+<file path="apps/web/src/lib/events/conflicts.ts">
+export type ConflictInterval = {
+  userId: string;
+  start: Date;
+  end: Date;
+};
+
+export function intervalsOverlap(
+  aStart: Date,
+  aEnd: Date,
+  bStart: Date,
+  bEnd: Date,
+) {
+  return aStart < bEnd && aEnd > bStart;
+}
+
+export function findConflictingUserIds({
+  intervalStart,
+  intervalEnd,
+  intervals,
+}: {
+  intervalStart: Date;
+  intervalEnd: Date;
+  intervals: ConflictInterval[];
+}) {
+  const seen = new Set<string>();
+  for (const interval of intervals) {
+    if (intervalsOverlap(intervalStart, intervalEnd, interval.start, interval.end)) {
+      seen.add(interval.userId);
+    }
+  }
+  return [...seen].sort();
+}
+</file>
+
+<file path="apps/web/src/lib/google/calendar.ts">
+import { google } from "googleapis";
+import crypto from "crypto";
+import { env } from "@/lib/env";
+import { decryptString } from "@/lib/crypto/secretbox";
+
+export const GCAL_READ_SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"] as const;
+export const GCAL_WRITE_SCOPES = [
+  ...GCAL_READ_SCOPES,
+  "https://www.googleapis.com/auth/calendar.events",
+] as const;
+
+export function getGcalScopes() {
+  return env.GCAL_WRITEBACK_ENABLED ? GCAL_WRITE_SCOPES : GCAL_READ_SCOPES;
+}
+export const MERGED_SOURCE_HASH = crypto.createHash("sha256").update("google:merged").digest("hex");
+
+function assertConfig() {
+  if (!env.GCAL_CLIENT_ID || !env.GCAL_CLIENT_SECRET || !env.GCAL_REDIRECT_URI) {
+    throw new Error("GCAL_CLIENT_ID/SECRET/REDIRECT_URI are required for calendar integration");
+  }
+}
+
+export function calendarIdHash(calendarId: string) {
+  return crypto.createHash("sha256").update(calendarId + env.AUTH_SECRET).digest("hex");
+}
+
+export function blockHash(args: { orgId: string; userId: string; sourceHash: string; startISO: string; endISO: string }) {
+  return crypto
+    .createHash("sha256")
+    .update(`${args.userId}|${args.orgId}|${args.sourceHash}|${args.startISO}|${args.endISO}`)
+    .digest("hex");
+}
+
+function oauth(refreshTokenCiphertext: string) {
+  assertConfig();
+  const refreshToken = decryptString(refreshTokenCiphertext);
+  const client = new google.auth.OAuth2(env.GCAL_CLIENT_ID, env.GCAL_CLIENT_SECRET, env.GCAL_REDIRECT_URI);
+  client.setCredentials({ refresh_token: refreshToken });
+  return client;
+}
+
+export async function listCalendars(refreshTokenCiphertext: string) {
+  const auth = oauth(refreshTokenCiphertext);
+  const cal = google.calendar({ version: "v3", auth });
+
+  const out: Array<{ id: string; summary?: string; primary?: boolean; accessRole?: string }> = [];
+  let pageToken: string | undefined;
+
+  do {
+    const res = await cal.calendarList.list({
+      pageToken,
+      maxResults: 250,
+      fields: "items(id,summary,primary,accessRole),nextPageToken",
+    });
+    for (const item of res.data.items ?? []) {
+      if (!item.id) continue;
+      out.push({
+        id: item.id,
+        summary: item.summary ?? undefined,
+        primary: item.primary ?? undefined,
+        accessRole: item.accessRole ?? undefined,
+      });
+    }
+    pageToken = res.data.nextPageToken ?? undefined;
+  } while (pageToken);
+
+  return out;
+}
+
+export async function freeBusy(args: {
+  refreshTokenCiphertext: string;
+  calendarIds: string[];
+  timeMinISO: string;
+  timeMaxISO: string;
+  timeZone?: string;
+}) {
+  const auth = oauth(args.refreshTokenCiphertext);
+  const cal = google.calendar({ version: "v3", auth });
+
+  const res = await cal.freebusy.query({
+    requestBody: {
+      timeMin: args.timeMinISO,
+      timeMax: args.timeMaxISO,
+      timeZone: args.timeZone,
+      items: args.calendarIds.map((id) => ({ id })),
+    },
+  });
+
+  return res.data.calendars ?? {};
+}
+
+export function mergeUtcIntervals(intervals: Array<{ startUtc: Date; endUtc: Date }>) {
+  const sorted = intervals
+    .filter((i) => i.startUtc < i.endUtc)
+    .sort((a, b) => a.startUtc.getTime() - b.startUtc.getTime());
+  const merged: Array<{ startUtc: Date; endUtc: Date }> = [];
+  for (const cur of sorted) {
+    const last = merged[merged.length - 1];
+    if (!last) {
+      merged.push(cur);
+      continue;
+    }
+    if (cur.startUtc.getTime() <= last.endUtc.getTime()) {
+      last.endUtc = new Date(Math.max(last.endUtc.getTime(), cur.endUtc.getTime()));
+    } else merged.push(cur);
+  }
+  return merged;
+}
+
+export async function createGoogleCalendarEvent(args: {
+  refreshTokenCiphertext: string;
+  calendarId: string;
+  summary: string;
+  description?: string;
+  startISO: string;
+  endISO: string;
+  timeZone: string;
+  attendees?: Array<{ email: string }>;
+  sendUpdates?: "all" | "externalOnly" | "none";
+}) {
+  const auth = oauth(args.refreshTokenCiphertext);
+  const cal = google.calendar({ version: "v3", auth });
+
+  const res = await cal.events.insert({
+    calendarId: args.calendarId,
+    sendUpdates: args.sendUpdates ?? "none",
+    requestBody: {
+      summary: args.summary,
+      description: args.description,
+      start: { dateTime: args.startISO, timeZone: args.timeZone },
+      end: { dateTime: args.endISO, timeZone: args.timeZone },
+      attendees: args.attendees,
+    },
+  });
+
+  return res.data;
+}
+</file>
+
+<file path="apps/web/src/lib/google/oauth.ts">
+import crypto from "crypto";
+import { cookies } from "next/headers";
+import { env } from "@/lib/env";
+
+const COOKIE = "lattice_gcal_oauth";
+
+const b64url = (buf: Buffer) => buf.toString("base64url");
+const sign = (json: string) => crypto.createHmac("sha256", env.AUTH_SECRET).update(json).digest("base64url");
+
+export function createPkcePair() {
+  const verifier = b64url(crypto.randomBytes(32));
+  const challenge = b64url(crypto.createHash("sha256").update(verifier).digest());
+  return { verifier, challenge };
+}
+
+export async function setOauthCookie(payload: Record<string, unknown>) {
+  const json = JSON.stringify(payload);
+  const value = `${b64url(Buffer.from(json))}.${sign(json)}`;
+  ;(await cookies()).set(COOKIE, value, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 10 * 60,
+  });
+}
+
+export async function readOauthCookie() {
+  const raw = (await cookies()).get(COOKIE)?.value;
+  if (!raw) return null;
+  const [payloadB64, sig] = raw.split(".");
+  if (!payloadB64 || !sig) return null;
+  const json = Buffer.from(payloadB64, "base64url").toString("utf8");
+  if (sign(json) !== sig) return null;
+  return JSON.parse(json) as Record<string, unknown>;
+}
+
+export async function clearOauthCookie() {
+  ;(await cookies()).set(COOKIE, "", { path: "/", maxAge: 0 });
+}
+</file>
+
+<file path="apps/web/src/lib/suggestions/engine.test.ts">
+import { describe, expect, it } from "vitest"
+import { generateSuggestions } from "./engine"
+
+function makeAttendee(userId: string, timeZone: string, windows: any[], overrides: any[] = []) {
+  return { userId, timeZone, windows, overrides }
+}
+
+describe("generateSuggestions", () => {
+  it("is deterministic with tie-breakers", () => {
+    const attendees = [
+      makeAttendee("a", "America/New_York", [{ dayOfWeek: 2, startMinute: 9 * 60, endMinute: 17 * 60 }]),
+      makeAttendee("b", "America/New_York", [{ dayOfWeek: 2, startMinute: 9 * 60, endMinute: 17 * 60 }]),
+    ]
+
+    const res1 = generateSuggestions({
+      timeZone: "America/New_York",
+      rangeStart: "2026-01-13",
+      rangeEnd: "2026-01-13",
+      durationMinutes: 30,
+      stepMinutes: 30,
+      dayStartMinute: 9 * 60,
+      dayEndMinute: 11 * 60,
+      attendees,
+      maxCandidates: 10,
+    })
+
+    const res2 = generateSuggestions({
+      timeZone: "America/New_York",
+      rangeStart: "2026-01-13",
+      rangeEnd: "2026-01-13",
+      durationMinutes: 30,
+      stepMinutes: 30,
+      dayStartMinute: 9 * 60,
+      dayEndMinute: 11 * 60,
+      attendees,
+      maxCandidates: 10,
+    })
+
+    expect(res1).toEqual(res2)
+    expect(res1[0]?.rank).toBe(1)
+  })
+
+  it("respects attendee time zones", () => {
+    const ny = makeAttendee("ny", "America/New_York", [{ dayOfWeek: 2, startMinute: 9 * 60, endMinute: 10 * 60 }])
+    const la = makeAttendee("la", "America/Los_Angeles", [{ dayOfWeek: 2, startMinute: 9 * 60, endMinute: 10 * 60 }])
+
+    const res = generateSuggestions({
+      timeZone: "America/New_York",
+      rangeStart: "2026-01-13",
+      rangeEnd: "2026-01-13",
+      durationMinutes: 30,
+      stepMinutes: 30,
+      dayStartMinute: 9 * 60,
+      dayEndMinute: 10 * 60,
+      attendees: [ny, la],
+      maxCandidates: 10,
+    })
+
+    expect(res.length).toBeGreaterThan(0)
+    expect(res[0].missingUserIds).toContain("la")
+  })
+
+  it("applies UNAVAILABLE overrides", () => {
+    const attendee = makeAttendee(
+      "u",
+      "America/New_York",
+      [{ dayOfWeek: 2, startMinute: 9 * 60, endMinute: 12 * 60 }],
+      [
+        {
+          startAt: "2026-01-13T15:00:00.000Z",
+          endAt: "2026-01-13T16:00:00.000Z",
+          kind: "UNAVAILABLE",
+        },
+      ],
+    )
+
+    const res = generateSuggestions({
+      timeZone: "America/New_York",
+      rangeStart: "2026-01-13",
+      rangeEnd: "2026-01-13",
+      durationMinutes: 30,
+      stepMinutes: 30,
+      dayStartMinute: 9 * 60,
+      dayEndMinute: 12 * 60,
+      attendees: [attendee],
+      maxCandidates: 20,
+    })
+
+    expect(res.some((candidate) => candidate.startAt === "2026-01-13T15:00:00.000Z")).toBe(false)
+  })
+})
+</file>
+
+<file path="apps/web/src/lib/suggestions/engine.ts">
+import { DateTime } from "luxon"
+import { createHash } from "crypto"
+
+import type { Interval } from "@/lib/availability/intervals"
+import { normalizeIntervals, subtractIntervals, unionIntervals } from "@/lib/availability/intervals"
+import { overrideToLocalIntervalForDate } from "@/lib/availability/time"
+
+export type OverrideDTO = {
+  startAt: string
+  endAt: string
+  kind: "AVAILABLE" | "UNAVAILABLE"
+}
+
+export type WindowDTO = {
+  dayOfWeek: number
+  startMinute: number
+  endMinute: number
+}
+
+export type AttendeeAvailabilityInput = {
+  userId: string
+  timeZone: string
+  windows: WindowDTO[]
+  overrides: OverrideDTO[]
+}
+
+export type SuggestionScores = {
+  total: number
+  attendance: number
+  inconvenience: number
+  fairness: number
+}
+
+export type SuggestionCandidate = {
+  rank: number
+  startAt: string
+  endAt: string
+  attendanceRatio: number
+  score: SuggestionScores
+  availableUserIds: string[]
+  missingUserIds: string[]
+  explanation: {
+    why: string[]
+    worstLocalTime?: {
+      userId: string
+      localStart: string
+      localEnd: string
+      timeZone: string
+      penalty: number
+    }
+  }
+}
+
+export type GenerateSuggestionsInput = {
+  timeZone: string
+  rangeStart: string
+  rangeEnd: string
+  durationMinutes: number
+  stepMinutes: number
+  dayStartMinute: number
+  dayEndMinute: number
+  attendees: AttendeeAvailabilityInput[]
+  maxCandidates?: number
+}
+
+export function computeRequestKey(
+  input: Omit<GenerateSuggestionsInput, "attendees" | "maxCandidates"> & { attendeeUserIds: string[] },
+) {
+  const stable = {
+    ...input,
+    attendeeUserIds: [...input.attendeeUserIds].sort(),
+  }
+  return createHash("sha256").update(JSON.stringify(stable)).digest("hex")
+}
+
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value))
+}
+
+function penaltyForLocalInterval(startMinute: number, endMinute: number) {
+  const startHour = startMinute / 60
+  const endHour = endMinute / 60
+
+  if (startHour >= 9 && endHour <= 17) return 0
+  if (startHour >= 8 && endHour <= 18) return 0.25
+  if (startHour >= 7 && endHour <= 19) return 0.6
+  return 1
+}
+
+function minutesSinceStartOfDay(dt: DateTime) {
+  return Math.round(dt.diff(dt.startOf("day"), "minutes").minutes)
+}
+
+function indexOverridesByLocalDate(timeZone: string, overrides: OverrideDTO[]) {
+  const map = new Map<string, OverrideDTO[]>()
+
+  for (const override of overrides) {
+    const startLocal = DateTime.fromISO(override.startAt, { zone: "utc" }).setZone(timeZone)
+    const endLocal = DateTime.fromISO(override.endAt, { zone: "utc" }).setZone(timeZone)
+
+    let cursor = startLocal.startOf("day")
+    const last = endLocal.startOf("day")
+
+    while (cursor <= last) {
+      const dateISO = cursor.toISODate()
+      if (dateISO) {
+        const list = map.get(dateISO) ?? []
+        list.push(override)
+        map.set(dateISO, list)
+      }
+      cursor = cursor.plus({ days: 1 })
+    }
+  }
+
+  return map
+}
+
+function buildWindowsByDay(windows: WindowDTO[]) {
+  const byDay = new Map<number, Interval[]>()
+
+  for (const window of windows) {
+    const list = byDay.get(window.dayOfWeek) ?? []
+    list.push({ start: window.startMinute, end: window.endMinute })
+    byDay.set(window.dayOfWeek, list)
+  }
+
+  for (const [day, list] of byDay.entries()) {
+    byDay.set(day, normalizeIntervals(list, { minSize: 1 }))
+  }
+
+  return byDay
+}
+
+function computeEffectiveIntervalsForDate(args: {
+  timeZone: string
+  dateISO: string
+  weekday: number
+  baseByDay: Map<number, Interval[]>
+  overridesByDate: Map<string, OverrideDTO[]>
+}) {
+  const base = args.baseByDay.get(args.weekday) ?? []
+  const overrides = args.overridesByDate.get(args.dateISO) ?? []
+
+  const adds: Interval[] = []
+  const removes: Interval[] = []
+
+  for (const override of overrides) {
+    const local = overrideToLocalIntervalForDate(override, args.dateISO, args.timeZone)
+    if (!local) continue
+    if (override.kind === "AVAILABLE") adds.push(local)
+    else removes.push(local)
+  }
+
+  const withAdds = unionIntervals(base, adds, { minSize: 1 })
+  const effective = subtractIntervals(withAdds, removes, { minSize: 1 })
+  return normalizeIntervals(effective, { minSize: 1 })
+}
+
+function isUserAvailableForUtcInterval(args: {
+  startAtUtcISO: string
+  endAtUtcISO: string
+  userId: string
+  timeZone: string
+  baseByDay: Map<number, Interval[]>
+  overridesByDate: Map<string, OverrideDTO[]>
+  effectiveCache: Map<string, Interval[]>
+}) {
+  const startLocal = DateTime.fromISO(args.startAtUtcISO, { zone: "utc" }).setZone(args.timeZone)
+  const endLocal = DateTime.fromISO(args.endAtUtcISO, { zone: "utc" }).setZone(args.timeZone)
+
+  const startDate = startLocal.toISODate()
+  const endDate = endLocal.toISODate()
+  if (!startDate || !endDate || startDate !== endDate) return { ok: false }
+
+  const weekday = startLocal.weekday
+  const startMinute = minutesSinceStartOfDay(startLocal)
+  const endMinute = minutesSinceStartOfDay(endLocal)
+
+  const cacheKey = `${args.userId}|${startDate}`
+  let effective = args.effectiveCache.get(cacheKey)
+  if (!effective) {
+    effective = computeEffectiveIntervalsForDate({
+      timeZone: args.timeZone,
+      dateISO: startDate,
+      weekday,
+      baseByDay: args.baseByDay,
+      overridesByDate: args.overridesByDate,
+    })
+    args.effectiveCache.set(cacheKey, effective)
+  }
+
+  const covers = effective.some((interval) => interval.start <= startMinute && interval.end >= endMinute)
+
+  return {
+    ok: true as const,
+    startMinute,
+    endMinute,
+    startLocal,
+    endLocal,
+    covers,
+  }
+}
+
+export function generateSuggestions(input: GenerateSuggestionsInput): SuggestionCandidate[] {
+  const maxCandidates = input.maxCandidates ?? 25
+
+  const preparedAttendees = input.attendees.map((attendee) => ({
+    ...attendee,
+    baseByDay: buildWindowsByDay(attendee.windows),
+    overridesByDate: indexOverridesByLocalDate(attendee.timeZone, attendee.overrides),
+    effectiveCache: new Map<string, Interval[]>(),
+  }))
+
+  const startDay = DateTime.fromISO(input.rangeStart, { zone: input.timeZone }).startOf("day")
+  const endDay = DateTime.fromISO(input.rangeEnd, { zone: input.timeZone }).startOf("day")
+
+  const candidates: Omit<SuggestionCandidate, "rank">[] = []
+
+  let cursor = startDay
+  while (cursor <= endDay) {
+    const dayEnd = cursor.plus({ minutes: input.dayEndMinute })
+
+    for (let offset = input.dayStartMinute; offset + input.durationMinutes <= input.dayEndMinute; offset += input.stepMinutes) {
+      const startLocal = cursor.plus({ minutes: offset })
+      const endLocal = startLocal.plus({ minutes: input.durationMinutes })
+
+      if (endLocal > dayEnd) continue
+      if (!startLocal.isValid || !endLocal.isValid) continue
+
+      const startAtUtcISO = startLocal.toUTC().toISO()
+      const endAtUtcISO = endLocal.toUTC().toISO()
+      if (!startAtUtcISO || !endAtUtcISO) continue
+
+      const availableUserIds: string[] = []
+      const missingUserIds: string[] = []
+
+      const penalties: Array<{
+        userId: string
+        penalty: number
+        startLocal: DateTime
+        endLocal: DateTime
+        tz: string
+      }> = []
+
+      for (const attendee of preparedAttendees) {
+        const result = isUserAvailableForUtcInterval({
+          startAtUtcISO,
+          endAtUtcISO,
+          userId: attendee.userId,
+          timeZone: attendee.timeZone,
+          baseByDay: attendee.baseByDay,
+          overridesByDate: attendee.overridesByDate,
+          effectiveCache: attendee.effectiveCache,
+        })
+
+        if (!result.ok || !result.covers) {
+          missingUserIds.push(attendee.userId)
+          continue
+        }
+
+        availableUserIds.push(attendee.userId)
+        const penalty = penaltyForLocalInterval(result.startMinute, result.endMinute)
+        penalties.push({
+          userId: attendee.userId,
+          penalty,
+          startLocal: result.startLocal,
+          endLocal: result.endLocal,
+          tz: attendee.timeZone,
+        })
+      }
+
+      const totalAttendees = preparedAttendees.length
+      const attendanceRatio = totalAttendees === 0 ? 0 : availableUserIds.length / totalAttendees
+      if (attendanceRatio <= 0) continue
+
+      const attendanceScore = clamp01(attendanceRatio)
+      const avgPenalty = penalties.length
+        ? penalties.reduce((sum, item) => sum + item.penalty, 0) / penalties.length
+        : 1
+      const maxPenalty = penalties.length
+        ? penalties.reduce((max, item) => Math.max(max, item.penalty), 0)
+        : 1
+
+      const inconvenienceScore = clamp01(1 - avgPenalty)
+      const fairnessScore = clamp01(1 - maxPenalty)
+      const totalScore = clamp01(0.6 * attendanceScore + 0.2 * inconvenienceScore + 0.2 * fairnessScore)
+
+      const worst = penalties
+        .slice()
+        .sort((a, b) => b.penalty - a.penalty)[0]
+
+      const why: string[] = []
+      why.push(`${availableUserIds.length}/${totalAttendees} attendees available`)
+      why.push(`Attendance score: ${attendanceScore.toFixed(2)}`)
+      why.push(`Inconvenience score: ${inconvenienceScore.toFixed(2)}`)
+      why.push(`Fairness score: ${fairnessScore.toFixed(2)}`)
+      if (worst) {
+        why.push(`Worst local time: ${worst.startLocal.toFormat("t")}–${worst.endLocal.toFormat("t")} (${worst.tz})`)
+      }
+
+      candidates.push({
+        startAt: startAtUtcISO,
+        endAt: endAtUtcISO,
+        attendanceRatio,
+        score: {
+          total: totalScore,
+          attendance: attendanceScore,
+          inconvenience: inconvenienceScore,
+          fairness: fairnessScore,
+        },
+        availableUserIds,
+        missingUserIds,
+        explanation: {
+          why,
+          worstLocalTime: worst
+            ? {
+                userId: worst.userId,
+                localStart: worst.startLocal.toISO() ?? "",
+                localEnd: worst.endLocal.toISO() ?? "",
+                timeZone: worst.tz,
+                penalty: worst.penalty,
+              }
+            : undefined,
+        },
+      })
+    }
+
+    cursor = cursor.plus({ days: 1 })
+  }
+
+  const ranked = candidates
+    .sort((a, b) => {
+      if (b.score.total !== a.score.total) return b.score.total - a.score.total
+      if (b.score.attendance !== a.score.attendance) return b.score.attendance - a.score.attendance
+      if (b.score.fairness !== a.score.fairness) return b.score.fairness - a.score.fairness
+      return a.startAt.localeCompare(b.startAt)
+    })
+    .slice(0, maxCandidates)
+    .map((candidate, index) => ({ ...candidate, rank: index + 1 }))
+
+  return ranked
+}
+</file>
+
+<file path="apps/web/src/lib/env.ts">
+import { parseEnv } from "@lattice/shared";
+
+export const env = parseEnv(process.env as Record<string, string | undefined>);
+</file>
+
+<file path="apps/web/src/lib/guards.ts">
+import { auth } from "@/auth";
+import { prisma } from "@lattice/db";
+import { roleAtLeast, type OrgRole } from "@/lib/rbac";
+
+export async function requireUserId(): Promise<string> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("UNAUTHORIZED");
+  return userId;
+}
+
+/**
+ * Membership guard that avoids “soft leaks” by defaulting to 404.
+ *
+ * Guidance:
+ * - Use 404 when the user is not a member (don’t confirm org existence).
+ * - Use 403 when the user is a member but lacks permissions.
+ */
+export async function requireMembership(
+  orgId: string,
+  opts?: { minRole?: OrgRole; notFoundOnFail?: boolean }
+) {
+  const userId = await requireUserId();
+
+  const membership = await prisma.membership.findUnique({
+    where: { orgId_userId: { orgId, userId } },
+    select: { id: true, role: true, orgId: true, userId: true },
+  });
+
+  if (!membership) {
+    const notFoundOnFail = opts?.notFoundOnFail ?? true;
+    return {
+      ok: false as const,
+      status: notFoundOnFail ? 404 : 403,
+      membership: null,
+    };
+  }
+
+  if (opts?.minRole && !roleAtLeast(membership.role as OrgRole, opts.minRole)) {
+    return { ok: false as const, status: 403, membership };
+  }
+
+  return { ok: true as const, status: 200, membership };
+}
+</file>
+
+<file path="apps/web/src/lib/org-context.ts">
+import { cookies } from "next/headers";
+
+export const ACTIVE_ORG_COOKIE = "lattice_org";
+
+export async function getActiveOrgId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get(ACTIVE_ORG_COOKIE)?.value ?? null;
+}
+
+export async function setActiveOrgId(orgId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_ORG_COOKIE, orgId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+}
+</file>
+
+<file path="apps/web/src/lib/rbac.ts">
+export type OrgRole = "OWNER" | "ADMIN" | "LEADER" | "MEMBER";
+
+const ROLE_RANK: Record<OrgRole, number> = {
+  MEMBER: 0,
+  LEADER: 1,
+  ADMIN: 2,
+  OWNER: 3,
+};
+
+export function roleAtLeast(actual: OrgRole, required: OrgRole) {
+  return ROLE_RANK[actual] >= ROLE_RANK[required];
+}
+
+export function isOrgAdmin(role: OrgRole) {
+  return role === "OWNER" || role === "ADMIN";
+}
+</file>
+
+<file path="apps/web/src/lib/slugify.ts">
+export function slugify(input: string) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 48);
+}
+</file>
+
+<file path="apps/web/src/types/next-auth.d.ts">
+import "next-auth";
+
+declare module "next-auth" {
+  interface Session {
+    user?: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
+  }
+}
+
+export {};
+</file>
+
+<file path="apps/web/src/auth.ts">
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+
+import { prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+
+const providers = [] as any[];
+
+if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) {
+  providers.push(
+    Google({
+      clientId: env.AUTH_GOOGLE_ID,
+      clientSecret: env.AUTH_GOOGLE_SECRET,
+    })
+  );
+}
+
+if (env.NODE_ENV !== "production") {
+  providers.push(
+    Credentials({
+      name: "Dev Sign-in",
+      credentials: {
+        email: { label: "Email", type: "email", placeholder: "dev@example.com" },
+      },
+      async authorize(credentials) {
+        const raw = credentials?.email;
+        const email = typeof raw === "string" ? raw.toLowerCase().trim() : "";
+        if (!email) return null;
+
+        const user = await prisma.user.upsert({
+          where: { email },
+          update: {},
+          create: { email, name: email.split("@")[0] },
+          select: { id: true, email: true, name: true, image: true },
+        });
+
+        return user;
+      },
+    })
+  );
+}
+
+export const {
+  handlers: { GET, POST },
+  auth,
+  signIn,
+  signOut,
+} = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: "jwt" },
+  providers,
+  pages: { signIn: "/signin" },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user?.id) token.sub = user.id;
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.sub) {
+        (session.user as any).id = token.sub;
+      }
+      return session;
+    },
+  },
+});
+</file>
+
+<file path="apps/web/src/middleware.ts">
+export { auth as middleware } from "@/auth";
+
+export const config = {
+  matcher: [
+    "/dashboard/:path*",
+    "/orgs/:path*",
+    "/api/orgs/:path*",
+    "/api/org-scoped/:path*",
+  ],
+};
+</file>
+
+<file path="apps/web/test-results/.last-run.json">
+{
+  "status": "passed",
+  "failedTests": []
+}
+</file>
+
+<file path="apps/web/tests/e2e/auth-smoke.spec.ts">
+import { test, expect } from "@playwright/test";
+
+test("dev sign-in reaches dashboard", async ({ page }) => {
+  await page.goto("http://localhost:3000/signin");
+  await page.getByLabel("Email (dev/test)").fill("dev@example.com");
+  await page
+    .getByRole("button", { name: "Continue", exact: true })
+    .click();
+
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+});
+</file>
+
+<file path="apps/web/tests/e2e/home.spec.ts">
+import { test, expect } from "@playwright/test";
+
+test("home loads", async ({ page }) => {
+  await page.goto("http://localhost:3000/");
+  await expect(page.getByRole("heading", { name: "Lattice" })).toBeVisible();
+});
+</file>
+
+<file path="apps/web/tests/unit/rbac.test.ts">
+import { describe, expect, it } from "vitest";
+import { roleAtLeast } from "@/lib/rbac";
+
+describe("roleAtLeast", () => {
+  it("orders roles correctly", () => {
+    expect(roleAtLeast("OWNER", "ADMIN")).toBe(true);
+    expect(roleAtLeast("ADMIN", "OWNER")).toBe(false);
+    expect(roleAtLeast("LEADER", "MEMBER")).toBe(true);
+    expect(roleAtLeast("MEMBER", "LEADER")).toBe(false);
+  });
+});
+</file>
+
+<file path="apps/web/tests/unit/smoke.test.ts">
+import { expect, test } from "vitest";
+
+test("smoke", () => {
+  expect(1 + 1).toBe(2);
+});
+</file>
+
+<file path="apps/web/.gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+</file>
+
+<file path="apps/web/eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+</file>
+
+<file path="apps/web/next.config.ts">
+import path from "path";
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  turbopack: {},
+  transpilePackages: ["@lattice/db", "@lattice/shared"],
+  webpack(config) {
+    const alias = config.resolve?.alias ?? {};
+    return {
+      ...config,
+      resolve: {
+        ...config.resolve,
+        alias: {
+          ...alias,
+          "@lattice/db": path.resolve(__dirname, "../../packages/db/dist/index.js"),
+          "@lattice/shared": path.resolve(__dirname, "../../packages/shared/dist/index.js"),
+        },
+      },
+    };
+  },
+};
+
+export default nextConfig;
+</file>
+
+<file path="apps/web/package.json">
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@auth/core": "^0.34.3",
+    "@auth/prisma-adapter": "^1.1.1",
+    "@lattice/db": "workspace:*",
+    "@lattice/shared": "workspace:*",
+    "@prisma/client": "^5.16.0",
+    "dotenv": "17.2.3",
+    "googleapis": "169.0.0",
+    "luxon": "3.7.2",
+    "next": "16.1.1",
+    "next-auth": "5.0.0-beta.30",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "^3.23.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.57.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.1",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "4.0.16"
+  }
+}
+</file>
+
+<file path="apps/web/playwright.config.ts">
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  testDir: "tests/e2e",
+  webServer: {
+    command: "pnpm dev",
+    url: "http://localhost:3000",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
+});
+</file>
+
+<file path="apps/web/pnpm-workspace.yaml">
+packages:
+  - .
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
+</file>
+
+<file path="apps/web/postcss.config.mjs">
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default config;
+</file>
+
+<file path="apps/web/README.md">
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+</file>
+
+<file path="apps/web/tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="apps/web/vitest.config.ts">
+import { defineConfig } from "vitest/config";
+import { resolve } from "path";
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      "@/": resolve(__dirname, "src") + "/",
+    },
+  },
+  test: {
+    environment: "node",
+    include: [
+      "src/**/*.test.{ts,tsx}",
+      "tests/unit/**/*.test.{ts,tsx}",
+    ],
+    exclude: ["tests/e2e/**"],
+  },
+});
+</file>
+
+<file path="docs/adr/0001-template.md">
+# ADR-0001: (Title)
+
+## Status
+Proposed | Accepted | Deprecated | Superseded
+
+## Context
+What problem are we solving?
+
+## Decision
+What did we decide?
+
+## Consequences
+Trade-offs, risks, follow-ups.
+</file>
+
+<file path="docs/api.md">
+# API Notes
+
+## Conventions
+- JSON responses
+- Error shape: `{ error: { code, message } }`
+- Idempotency: reserved for later phases (Redis)
+
+## Starter routes
+- `GET /api/health`
+- `GET /api/db-ping`
+
+## Suggestions (Phase 3)
+
+> Requires `SUGGESTIONS_ENABLED=1` to be set in the environment.
+
+- `POST /api/orgs/:orgId/suggestions/requests` — create a request and generate ranked candidate slots.
+- `GET /api/orgs/:orgId/suggestions/requests` — list recent suggestion requests for an org.
+- `GET /api/orgs/:orgId/suggestions/requests/:requestId` — fetch a single request with its candidates/explanation payload.
+</file>
+
+<file path="docs/architecture.md">
+# Architecture
+
+## High-level
+- Next.js App Router
+- Route Handlers for API
+- Postgres (Neon in prod)
+- Redis (Upstash in prod)
+
+## Packages
+- apps/web
+- packages/db
+- packages/shared
+
+## Notes
+- Phase 1 adds Auth.js and org-scoped authorization.
+- Phase 2 adds calendar integrations and availability normalization.
+</file>
+
+<file path="docs/fairness-engine.md">
+# Fairness Engine (Phase 3)
+
+v1 uses a simple, deterministic fairness proxy:
+- compute a local-time penalty for each available attendee
+- fairness score = 1 - maxPenalty
+
+This avoids recommending slots that are great for most but punishing for one person.
+
+Future phases can replace this with rolling 30-day burden budgets once we have scheduled events.
+</file>
+
+<file path="docs/threat-model.md">
+# Threat Model (starter)
+
+## Assets
+- User identities
+- Calendar metadata + tokens
+- Availability profiles
+
+## Threats
+- Unauthorized org data access (multi-tenant isolation)
+- Token leakage
+- Excessive calendar permissions
+
+## Mitigations (Phase 0/1)
+- Org-scoped authorization checks
+- Env/secret hygiene
+- Minimal OAuth scopes
+- Reduce logging of sensitive payloads
+</file>
+
+<file path="packages/db/prisma/migrations/20260105215837_init/migration.sql">
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('OWNER', 'ADMIN', 'LEADER', 'MEMBER');
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "name" TEXT,
+    "email" TEXT,
+    "emailVerified" TIMESTAMP(3),
+    "image" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Account" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "providerAccountId" TEXT NOT NULL,
+    "refresh_token" TEXT,
+    "access_token" TEXT,
+    "expires_at" INTEGER,
+    "token_type" TEXT,
+    "scope" TEXT,
+    "id_token" TEXT,
+    "session_state" TEXT,
+
+    CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Session" (
+    "id" TEXT NOT NULL,
+    "sessionToken" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "expires" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "VerificationToken" (
+    "identifier" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "expires" TIMESTAMP(3) NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "Org" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Org_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Membership" (
+    "id" TEXT NOT NULL,
+    "orgId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'MEMBER',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Membership_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Account_provider_providerAccountId_key" ON "Account"("provider", "providerAccountId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Session_sessionToken_key" ON "Session"("sessionToken");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VerificationToken_token_key" ON "VerificationToken"("token");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VerificationToken_identifier_token_key" ON "VerificationToken"("identifier", "token");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Org_slug_key" ON "Org"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Membership_orgId_userId_key" ON "Membership"("orgId", "userId");
+
+-- AddForeignKey
+ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Membership" ADD CONSTRAINT "Membership_orgId_fkey" FOREIGN KEY ("orgId") REFERENCES "Org"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Membership" ADD CONSTRAINT "Membership_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+</file>
+
+<file path="packages/db/prisma/migrations/20260106000452_availability_profiles/migration.sql">
+-- CreateEnum
+CREATE TYPE "AvailabilityOverrideKind" AS ENUM ('AVAILABLE', 'UNAVAILABLE');
+
+-- CreateTable
+CREATE TABLE "AvailabilityTemplate" (
+    "id" TEXT NOT NULL,
+    "orgId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "timeZone" TEXT NOT NULL DEFAULT 'UTC',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AvailabilityTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AvailabilityWindow" (
+    "id" TEXT NOT NULL,
+    "templateId" TEXT NOT NULL,
+    "dayOfWeek" INTEGER NOT NULL,
+    "startMinute" INTEGER NOT NULL,
+    "endMinute" INTEGER NOT NULL,
+
+    CONSTRAINT "AvailabilityWindow_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AvailabilityOverride" (
+    "id" TEXT NOT NULL,
+    "orgId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "startAt" TIMESTAMP(3) NOT NULL,
+    "endAt" TIMESTAMP(3) NOT NULL,
+    "kind" "AvailabilityOverrideKind" NOT NULL,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AvailabilityOverride_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "AvailabilityTemplate_orgId_idx" ON "AvailabilityTemplate"("orgId");
+
+-- CreateIndex
+CREATE INDEX "AvailabilityTemplate_userId_idx" ON "AvailabilityTemplate"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AvailabilityTemplate_orgId_userId_key" ON "AvailabilityTemplate"("orgId", "userId");
+
+-- CreateIndex
+CREATE INDEX "AvailabilityWindow_templateId_idx" ON "AvailabilityWindow"("templateId");
+
+-- CreateIndex
+CREATE INDEX "AvailabilityWindow_dayOfWeek_idx" ON "AvailabilityWindow"("dayOfWeek");
+
+-- CreateIndex
+CREATE INDEX "AvailabilityOverride_orgId_startAt_idx" ON "AvailabilityOverride"("orgId", "startAt");
+
+-- CreateIndex
+CREATE INDEX "AvailabilityOverride_userId_startAt_idx" ON "AvailabilityOverride"("userId", "startAt");
+
+-- CreateIndex
+CREATE INDEX "AvailabilityOverride_orgId_userId_startAt_idx" ON "AvailabilityOverride"("orgId", "userId", "startAt");
+
+-- AddForeignKey
+ALTER TABLE "AvailabilityTemplate" ADD CONSTRAINT "AvailabilityTemplate_orgId_fkey" FOREIGN KEY ("orgId") REFERENCES "Org"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AvailabilityTemplate" ADD CONSTRAINT "AvailabilityTemplate_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AvailabilityWindow" ADD CONSTRAINT "AvailabilityWindow_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "AvailabilityTemplate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AvailabilityOverride" ADD CONSTRAINT "AvailabilityOverride_orgId_fkey" FOREIGN KEY ("orgId") REFERENCES "Org"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AvailabilityOverride" ADD CONSTRAINT "AvailabilityOverride_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+</file>
+
+<file path="packages/db/prisma/migrations/20260106020655_phase4_google_calendar/migration.sql">
+-- CreateEnum
+CREATE TYPE "CalendarProvider" AS ENUM ('GOOGLE');
+
+-- CreateEnum
+CREATE TYPE "CalendarConnectionStatus" AS ENUM ('ACTIVE', 'REVOKED', 'ERROR');
+
+-- CreateTable
+CREATE TABLE "CalendarConnection" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "provider" "CalendarProvider" NOT NULL,
+    "scopes" TEXT NOT NULL,
+    "encryptedRefreshToken" TEXT NOT NULL,
+    "status" "CalendarConnectionStatus" NOT NULL DEFAULT 'ACTIVE',
+    "lastSyncAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CalendarConnection_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CalendarSelection" (
+    "id" TEXT NOT NULL,
+    "connectionId" TEXT NOT NULL,
+    "orgId" TEXT NOT NULL,
+    "calendarIdHash" TEXT NOT NULL,
+    "isBusySource" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CalendarSelection_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BusyBlock" (
+    "id" TEXT NOT NULL,
+    "orgId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "provider" "CalendarProvider" NOT NULL,
+    "sourceHash" TEXT NOT NULL,
+    "startUtc" TIMESTAMP(3) NOT NULL,
+    "endUtc" TIMESTAMP(3) NOT NULL,
+    "blockHash" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "BusyBlock_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CalendarSyncRun" (
+    "id" TEXT NOT NULL,
+    "orgId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "connectionId" TEXT NOT NULL,
+    "provider" "CalendarProvider" NOT NULL,
+    "rangeStartUtc" TIMESTAMP(3) NOT NULL,
+    "rangeEndUtc" TIMESTAMP(3) NOT NULL,
+    "status" TEXT NOT NULL,
+    "errorCode" TEXT,
+    "errorDetail" TEXT,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finishedAt" TIMESTAMP(3),
+
+    CONSTRAINT "CalendarSyncRun_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SuggestionRequest" (
+    "id" TEXT NOT NULL,
+    "orgId" TEXT NOT NULL,
+    "createdById" TEXT NOT NULL,
+    "requestKey" TEXT NOT NULL,
+    "title" TEXT,
+    "timeZone" TEXT NOT NULL,
+    "rangeStart" TIMESTAMP(3) NOT NULL,
+    "rangeEnd" TIMESTAMP(3) NOT NULL,
+    "durationMinutes" INTEGER NOT NULL,
+    "stepMinutes" INTEGER NOT NULL DEFAULT 15,
+    "dayStartMinute" INTEGER NOT NULL DEFAULT 480,
+    "dayEndMinute" INTEGER NOT NULL DEFAULT 1200,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SuggestionRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SuggestionRequestAttendee" (
+    "id" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+
+    CONSTRAINT "SuggestionRequestAttendee_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SuggestionCandidate" (
+    "id" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "rank" INTEGER NOT NULL,
+    "startAt" TIMESTAMP(3) NOT NULL,
+    "endAt" TIMESTAMP(3) NOT NULL,
+    "attendanceRatio" DOUBLE PRECISION NOT NULL,
+    "scoreTotal" DOUBLE PRECISION NOT NULL,
+    "scoreAttendance" DOUBLE PRECISION NOT NULL,
+    "scoreInconvenience" DOUBLE PRECISION NOT NULL,
+    "scoreFairness" DOUBLE PRECISION NOT NULL,
+    "availableUserIds" TEXT[],
+    "missingUserIds" TEXT[],
+    "explanation" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SuggestionCandidate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CalendarConnection_userId_provider_key" ON "CalendarConnection"("userId", "provider");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CalendarSelection_connectionId_orgId_calendarIdHash_key" ON "CalendarSelection"("connectionId", "orgId", "calendarIdHash");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BusyBlock_blockHash_key" ON "BusyBlock"("blockHash");
+
+-- CreateIndex
+CREATE INDEX "BusyBlock_orgId_userId_startUtc_idx" ON "BusyBlock"("orgId", "userId", "startUtc");
+
+-- CreateIndex
+CREATE INDEX "CalendarSyncRun_orgId_userId_startedAt_idx" ON "CalendarSyncRun"("orgId", "userId", "startedAt");
+
+-- CreateIndex
+CREATE INDEX "SuggestionRequest_orgId_createdAt_idx" ON "SuggestionRequest"("orgId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SuggestionRequest_orgId_requestKey_key" ON "SuggestionRequest"("orgId", "requestKey");
+
+-- CreateIndex
+CREATE INDEX "SuggestionRequestAttendee_userId_idx" ON "SuggestionRequestAttendee"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SuggestionRequestAttendee_requestId_userId_key" ON "SuggestionRequestAttendee"("requestId", "userId");
+
+-- CreateIndex
+CREATE INDEX "SuggestionCandidate_requestId_rank_idx" ON "SuggestionCandidate"("requestId", "rank");
+
+-- CreateIndex
+CREATE INDEX "SuggestionCandidate_startAt_idx" ON "SuggestionCandidate"("startAt");
+
+-- AddForeignKey
+ALTER TABLE "CalendarConnection" ADD CONSTRAINT "CalendarConnection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CalendarSelection" ADD CONSTRAINT "CalendarSelection_connectionId_fkey" FOREIGN KEY ("connectionId") REFERENCES "CalendarConnection"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CalendarSelection" ADD CONSTRAINT "CalendarSelection_orgId_fkey" FOREIGN KEY ("orgId") REFERENCES "Org"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BusyBlock" ADD CONSTRAINT "BusyBlock_orgId_fkey" FOREIGN KEY ("orgId") REFERENCES "Org"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BusyBlock" ADD CONSTRAINT "BusyBlock_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CalendarSyncRun" ADD CONSTRAINT "CalendarSyncRun_orgId_fkey" FOREIGN KEY ("orgId") REFERENCES "Org"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CalendarSyncRun" ADD CONSTRAINT "CalendarSyncRun_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CalendarSyncRun" ADD CONSTRAINT "CalendarSyncRun_connectionId_fkey" FOREIGN KEY ("connectionId") REFERENCES "CalendarConnection"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SuggestionRequest" ADD CONSTRAINT "SuggestionRequest_orgId_fkey" FOREIGN KEY ("orgId") REFERENCES "Org"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SuggestionRequest" ADD CONSTRAINT "SuggestionRequest_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SuggestionRequestAttendee" ADD CONSTRAINT "SuggestionRequestAttendee_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "SuggestionRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SuggestionRequestAttendee" ADD CONSTRAINT "SuggestionRequestAttendee_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SuggestionCandidate" ADD CONSTRAINT "SuggestionCandidate_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "SuggestionRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+</file>
+
+<file path="packages/db/prisma/migrations/20260106031037_phase5_scheduled_events/migration.sql">
+-- CreateEnum
+CREATE TYPE "ScheduledEventStatus" AS ENUM ('CONFIRMED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "RsvpStatus" AS ENUM ('INVITED', 'ACCEPTED', 'DECLINED', 'TENTATIVE');
+
+-- CreateEnum
+CREATE TYPE "WriteBackStatus" AS ENUM ('NOT_REQUESTED', 'PENDING', 'SUCCESS', 'ERROR');
+
+-- CreateTable
+CREATE TABLE "ScheduledEvent" (
+    "id" TEXT NOT NULL,
+    "orgId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "notes" TEXT,
+    "startUtc" TIMESTAMP(3) NOT NULL,
+    "endUtc" TIMESTAMP(3) NOT NULL,
+    "timeZone" TEXT NOT NULL,
+    "status" "ScheduledEventStatus" NOT NULL DEFAULT 'CONFIRMED',
+    "sourceRequestId" TEXT,
+    "sourceCandidateRank" INTEGER,
+    "createdById" TEXT NOT NULL,
+    "confirmedById" TEXT NOT NULL,
+    "writeBackStatus" "WriteBackStatus" NOT NULL DEFAULT 'NOT_REQUESTED',
+    "externalProvider" TEXT,
+    "externalCalendarId" TEXT,
+    "externalEventId" TEXT,
+    "externalEventHtmlLink" TEXT,
+    "writeBackError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ScheduledEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ScheduledEventAttendee" (
+    "id" TEXT NOT NULL,
+    "eventId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "rsvp" "RsvpStatus" NOT NULL DEFAULT 'INVITED',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ScheduledEventAttendee_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "ScheduledEvent_orgId_startUtc_idx" ON "ScheduledEvent"("orgId", "startUtc");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ScheduledEvent_sourceRequestId_sourceCandidateRank_key" ON "ScheduledEvent"("sourceRequestId", "sourceCandidateRank");
+
+-- CreateIndex
+CREATE INDEX "ScheduledEventAttendee_userId_idx" ON "ScheduledEventAttendee"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ScheduledEventAttendee_eventId_userId_key" ON "ScheduledEventAttendee"("eventId", "userId");
+
+-- AddForeignKey
+ALTER TABLE "ScheduledEvent" ADD CONSTRAINT "ScheduledEvent_orgId_fkey" FOREIGN KEY ("orgId") REFERENCES "Org"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ScheduledEvent" ADD CONSTRAINT "ScheduledEvent_sourceRequestId_fkey" FOREIGN KEY ("sourceRequestId") REFERENCES "SuggestionRequest"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ScheduledEvent" ADD CONSTRAINT "ScheduledEvent_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ScheduledEvent" ADD CONSTRAINT "ScheduledEvent_confirmedById_fkey" FOREIGN KEY ("confirmedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ScheduledEventAttendee" ADD CONSTRAINT "ScheduledEventAttendee_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "ScheduledEvent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ScheduledEventAttendee" ADD CONSTRAINT "ScheduledEventAttendee_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+</file>
+
+<file path="packages/db/prisma/migrations/migration_lock.toml">
+# Please do not edit this file manually
+# It should be added in your version-control system (i.e. Git)
+provider = "postgresql"
+</file>
+
+<file path="packages/db/prisma/schema.prisma">
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Auth.js / NextAuth models (Prisma Adapter-compatible) ---
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  memberships   Membership[]
+  calendarConnections CalendarConnection[]
+  busyBlocks          BusyBlock[]
+  syncRuns            CalendarSyncRun[]
+
+  availabilityTemplates AvailabilityTemplate[]
+  availabilityOverrides AvailabilityOverride[]
+  createdSuggestionRequests SuggestionRequest[]
+  suggestionRequestAttendees SuggestionRequestAttendee[]
+  scheduledEventAttendees ScheduledEventAttendee[]
+  createdScheduledEvents ScheduledEvent[] @relation("ScheduledEventCreatedBy")
+  confirmedScheduledEvents ScheduledEvent[] @relation("ScheduledEventConfirmedBy")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- Multi-tenant placeholders (Phase 1 will use these) ---
+model Org {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  members   Membership[]
+  calendarSelections CalendarSelection[]
+  busyBlocks BusyBlock[]
+  syncRuns   CalendarSyncRun[]
+  suggestionRequests SuggestionRequest[]
+  availabilityTemplates AvailabilityTemplate[]
+  availabilityOverrides AvailabilityOverride[]
+  scheduledEvents ScheduledEvent[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  LEADER
+  MEMBER
+}
+
+// --- Phase 2: Availability ---
+
+enum AvailabilityOverrideKind {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+model AvailabilityTemplate {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  timeZone  String   @default("UTC")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org    Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  windows AvailabilityWindow[]
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+}
+
+model AvailabilityWindow {
+  id         String @id @default(cuid())
+  templateId String
+  dayOfWeek  Int    // 1=Mon ... 7=Sun (Luxon weekday)
+  startMinute Int   // 0..1439
+  endMinute   Int   // 1..1440
+
+  template AvailabilityTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([dayOfWeek])
+}
+
+enum CalendarProvider {
+  GOOGLE
+}
+
+enum CalendarConnectionStatus {
+  ACTIVE
+  REVOKED
+  ERROR
+}
+
+model CalendarConnection {
+  id                    String   @id @default(cuid())
+  userId                String
+  provider              CalendarProvider
+  scopes                String
+  encryptedRefreshToken String
+  status                CalendarConnectionStatus @default(ACTIVE)
+  lastSyncAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selections CalendarSelection[]
+  syncRuns   CalendarSyncRun[]
+
+  @@unique([userId, provider])
+}
+
+model CalendarSelection {
+  id             String   @id @default(cuid())
+  connectionId   String
+  orgId          String
+  calendarIdHash String   // sha256(calendarId + AUTH_SECRET)
+  isBusySource   Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  org        Org               @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, orgId, calendarIdHash])
+}
+
+model BusyBlock {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  provider  CalendarProvider
+  sourceHash String // hashed, never raw IDs
+  startUtc  DateTime
+  endUtc    DateTime
+  blockHash String  @unique // sha256(userId|orgId|sourceHash|start|end)
+  createdAt DateTime @default(now())
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, userId, startUtc])
+}
+
+model CalendarSyncRun {
+  id            String   @id @default(cuid())
+  orgId         String
+  userId        String
+  connectionId  String
+  provider      CalendarProvider
+  rangeStartUtc DateTime
+  rangeEndUtc   DateTime
+  status        String   // STARTED | SUCCESS | ERROR
+  errorCode     String?
+  errorDetail   String?
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+
+  org        Org                @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, userId, startedAt])
+}
+
+model AvailabilityOverride {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  startAt   DateTime
+  endAt     DateTime
+  kind      AvailabilityOverrideKind
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, startAt])
+  @@index([userId, startAt])
+  @@index([orgId, userId, startAt])
+}
+
+model SuggestionRequest {
+  id             String   @id @default(cuid())
+  orgId          String
+  createdById    String
+  requestKey     String
+  title          String?
+  timeZone       String
+  rangeStart     DateTime
+  rangeEnd       DateTime
+  durationMinutes Int
+  stepMinutes     Int      @default(15)
+  dayStartMinute  Int      @default(480)
+  dayEndMinute    Int      @default(1200)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  org      Org                    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  attendees SuggestionRequestAttendee[]
+  candidates SuggestionCandidate[]
+  scheduledEvents ScheduledEvent[] @relation("ScheduledEventSuggestionRequest")
+
+  @@unique([orgId, requestKey])
+  @@index([orgId, createdAt])
+}
+
+model SuggestionRequestAttendee {
+  id        String @id @default(cuid())
+  requestId String
+  userId    String
+
+  request SuggestionRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, userId])
+  @@index([userId])
+}
+
+model SuggestionCandidate {
+  id               String   @id @default(cuid())
+  requestId        String
+  rank             Int
+  startAt          DateTime
+  endAt            DateTime
+  attendanceRatio  Float
+  scoreTotal         Float
+  scoreAttendance    Float
+  scoreInconvenience Float
+  scoreFairness      Float
+  availableUserIds String[]
+  missingUserIds   String[]
+  explanation      Json
+  createdAt        DateTime @default(now())
+
+  request SuggestionRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, rank])
+  @@index([startAt])
+}
+
+enum ScheduledEventStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+enum RsvpStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+}
+
+enum WriteBackStatus {
+  NOT_REQUESTED
+  PENDING
+  SUCCESS
+  ERROR
+}
+
+model ScheduledEvent {
+  id        String              @id @default(cuid())
+  orgId     String
+  org       Org                 @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  title     String
+  notes     String?
+  startUtc  DateTime
+  endUtc    DateTime
+  timeZone  String
+
+  status    ScheduledEventStatus @default(CONFIRMED)
+
+  sourceRequestId     String?
+  sourceCandidateRank Int?
+  suggestionRequest   SuggestionRequest? @relation("ScheduledEventSuggestionRequest", fields: [sourceRequestId], references: [id], onDelete: SetNull)
+
+  createdById  String
+  createdBy    User    @relation("ScheduledEventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  confirmedById String
+  confirmedBy   User   @relation("ScheduledEventConfirmedBy", fields: [confirmedById], references: [id], onDelete: Restrict)
+
+  writeBackStatus       WriteBackStatus @default(NOT_REQUESTED)
+  externalProvider      String?
+  externalCalendarId    String?
+  externalEventId       String?
+  externalEventHtmlLink String?
+  writeBackError        String?
+
+  attendees ScheduledEventAttendee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, startUtc])
+  @@unique([sourceRequestId, sourceCandidateRank])
+}
+
+model ScheduledEventAttendee {
+  id      String @id @default(cuid())
+  eventId String
+  event   ScheduledEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  rsvp RsvpStatus @default(INVITED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+</file>
+
+<file path="packages/db/src/index.ts">
+import { PrismaClient } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log:
+      process.env.NODE_ENV === "development"
+        ? ["query", "error", "warn"]
+        : ["error"],
+  });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+</file>
+
+<file path="packages/db/eslint.config.cjs">
+const parser = require("@typescript-eslint/parser");
+
+module.exports = [
+  {
+    ignores: ["dist", "node_modules"],
+  },
+  {
+    files: ["**/*.ts"],
+    languageOptions: {
+      parser,
+      parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: __dirname,
+      },
+    },
+    rules: {},
+  },
+];
+</file>
+
+<file path="packages/db/package.json">
+{
+  "name": "@lattice/db",
+  "private": true,
+  "version": "0.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "prisma"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "echo \"(no tests yet)\"",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "eslint": "^9.0.0",
+    "prisma": "^5.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+</file>
+
+<file path="packages/db/tsconfig.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"]
+}
+</file>
+
+<file path="packages/shared/src/env.ts">
+import { z } from "zod";
+
+const boolishString = z
+  .string()
+  .optional()
+  .default("0")
+  .transform((value) => {
+    const normalized = value?.toLowerCase() ?? "";
+    return normalized === "1" || normalized === "true";
+  });
+
+// NOTE: keep Phase 0 minimal. Expand as you add features.
+export const EnvSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  DATABASE_URL: z.string().url(),
+  REDIS_URL: z.string().optional(),
+  AUTH_SECRET: z.string().min(10),
+  AUTH_GOOGLE_ID: z.string().optional().or(z.literal("")),
+  AUTH_GOOGLE_SECRET: z.string().optional().or(z.literal("")),
+  RESEND_API_KEY: z.string().optional(),
+  SENTRY_DSN: z.string().optional(),
+  GCAL_CLIENT_ID: z.string().optional().or(z.literal("")).default(""),
+  GCAL_CLIENT_SECRET: z.string().optional().or(z.literal("")).default(""),
+  GCAL_REDIRECT_URI: z.string().optional().or(z.literal("")).default(""),
+  TOKEN_ENC_KEY: z.string().optional().or(z.literal("")).default(""),
+  SUGGESTIONS_ENABLED: boolishString,
+  EVENTS_ENABLED: boolishString,
+  GCAL_WRITEBACK_ENABLED: boolishString,
+});
+
+export type Env = z.infer<typeof EnvSchema>;
+
+export function parseEnv(raw: Record<string, string | undefined>): Env {
+  return EnvSchema.parse(raw);
+}
+</file>
+
+<file path="packages/shared/src/index.ts">
+export * from "./env";
+</file>
+
+<file path="packages/shared/eslint.config.cjs">
+const parser = require("@typescript-eslint/parser");
+
+module.exports = [
+  {
+    ignores: ["dist", "node_modules"],
+  },
+  {
+    files: ["**/*.ts"],
+    languageOptions: {
+      parser,
+      parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: __dirname,
+      },
+    },
+    rules: {},
+  },
+];
+</file>
+
+<file path="packages/shared/package.json">
+{
+  "name": "@lattice/shared",
+  "private": true,
+  "version": "0.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "echo \"(no tests yet)\""
+  },
+  "dependencies": {
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "eslint": "^9.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+</file>
+
+<file path="packages/shared/tsconfig.json">
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"]
+}
+</file>
+
+<file path=".gitignore">
+.env
+.env.*
+!.env.example
+
+node_modules
+.next
+.DS_Store
+
+dist
+coverage
+playwright-report
+</file>
+
+<file path=".nvmrc">
+20
+</file>
+
+<file path=".prettierignore">
+.next
+dist
+node_modules
+pnpm-lock.yaml
+</file>
+
+<file path=".prettierrc.json">
+{
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "plugins": ["prettier-plugin-tailwindcss"]
+}
+</file>
+
+<file path=".tool-versions">
+nodejs 20.0.0
+</file>
+
+<file path="CODE_OF_CONDUCT.md">
+# Contributor Covenant Code of Conduct
+
+## Our Pledge
+We as members, contributors, and leaders pledge to make participation in our
+community a harassment-free experience for everyone, regardless of age, body
+size, visible or invisible disability, ethnicity, sex characteristics, gender
+identity and expression, level of experience, education, socio-economic status,
+nationality, personal appearance, race, caste, color, religion, or sexual
+identity and orientation.
+
+We pledge to act and interact in ways that contribute to an open, welcoming,
+diverse, inclusive, and healthy community.
+
+## Our Standards
+Examples of behavior that contributes to a positive environment for our
+community include:
+
+- Demonstrating empathy and kindness toward other people
+- Being respectful of differing opinions, viewpoints, and experiences
+- Giving and gracefully accepting constructive feedback
+- Accepting responsibility and apologizing to those affected by our mistakes,
+and learning from the experience
+- Focusing on what is best not just for us as individuals, but for the overall
+community
+
+Examples of unacceptable behavior include:
+
+- The use of sexualized language or imagery, and sexual attention or advances of
+any kind
+- Trolling, insulting or derogatory comments, and personal or political attacks
+- Public or private harassment
+- Publishing others’ private information, such as a physical or email address,
+without their explicit permission
+- Other conduct which could reasonably be considered inappropriate in a
+professional setting
+
+## Enforcement Responsibilities
+Community leaders are responsible for clarifying and enforcing our standards of
+acceptable behavior and will take appropriate and fair corrective action in
+response to any behavior that they deem inappropriate, threatening, offensive,
+or harmful.
+
+Community leaders have the right and responsibility to remove, edit, or reject
+comments, commits, code, wiki edits, issues, and other contributions that are
+not aligned to this Code of Conduct, and will communicate reasons for moderation
+decisions when appropriate.
+
+## Scope
+This Code of Conduct applies within all community spaces, and also applies when
+an individual is officially representing the community in public spaces.
+
+## Enforcement
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported to the community leaders responsible for enforcement at
+security@lattice.dev. All complaints will be reviewed and investigated
+promptly and fairly.
+
+All community leaders are obligated to respect the privacy and security of the
+reporter of any incident.
+
+## Attribution
+This Code of Conduct is adapted from the Contributor Covenant, version 2.1,
+available at https://www.contributor-covenant.org/version/2/1/code_of_conduct.html.
+</file>
+
+<file path="CONTRIBUTING.md">
+# Contributing
+
+## Quick start
+1. `pnpm -w db:up`
+2. `cp .env.example .env.local`
+3. `pnpm -w db:migrate`
+4. `pnpm -w dev`
+
+## PR expectations
+- Small PRs
+- Add/update tests when behavior changes
+- Run `pnpm -w lint typecheck test build` before opening PR
+
+## Commit style
+Prefer conventional commits (optional):
+- feat: ...
+- fix: ...
+- chore: ...
+- docs: ...
+</file>
+
+<file path="docker-compose.yml">
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: lattice
+      POSTGRES_PASSWORD: lattice
+      POSTGRES_DB: lattice
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  pg_data:
+  redis_data:
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2024 Wholesway
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="package.json">
+{
+  "name": "lattice",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm -C apps/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f",
+    "db:generate": "pnpm -C packages/db prisma:generate",
+    "db:migrate": "pnpm -C packages/db prisma:migrate",
+    "db:studio": "pnpm -C packages/db prisma:studio"
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "8.52.0",
+    "node-addon-api": "8.5.0",
+    "prettier": "3.7.4",
+    "prettier-plugin-tailwindcss": "0.7.2"
+  }
+}
+</file>
+
+<file path="pnpm-workspace.yaml">
+packages:
+  - "apps/*"
+  - "packages/*"
+</file>
+
+<file path="README.md">
+# Lattice
+
+Privacy-respecting scheduling for groups and organizations.
+
+## Local dev
+
+### 1) Start services
+
+```bash
+pnpm -w db:up
+```
+
+### 2) Configure env
+
+```bash
+cp .env.example .env.local
+```
+
+### 3) Migrate DB
+
+```bash
+pnpm -w db:migrate
+```
+
+### 4) Run the app
+
+```bash
+pnpm -w dev
+```
+
+Health check: [http://localhost:3000/api/health](http://localhost:3000/api/health)
+
+## Scripts
+
+* `pnpm -w lint`
+* `pnpm -w typecheck`
+* `pnpm -w test`
+* `pnpm -w build`
+
+## Repo layout
+
+* `apps/web`: Next.js UI + API
+* `packages/db`: Prisma client + schema
+* `packages/shared`: shared types + env validation
+</file>
+
+<file path="SECURITY.md">
+# Security Policy
+
+## Reporting a vulnerability
+Please do not open public issues for security reports.
+
+Email: security@lattice.dev
+
+## Secrets
+- Never commit `.env*` except `.env.example`.
+- Rotate keys immediately if exposed.
+
+## Data
+- Calendar tokens and availability data are considered sensitive.
+- Avoid logging OAuth tokens or full calendar payloads.
+</file>
+
+<file path="tsconfig.base.json">
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+</file>
+
+</files>
