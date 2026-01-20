@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/josuejero/lattice/discussions
+    about: Ask community questions or share broader ideas.
+  - name: Docs
+    url: https://github.com/josuejero/lattice#readme
+    about: See setup guides and architecture notes.

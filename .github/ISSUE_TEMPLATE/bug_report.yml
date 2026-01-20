@@ -1,0 +1,49 @@
+name: Bug report
+about: Report a reproducible bug so we can quickly fix it.
+title: "[BUG] "
+labels: bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Provide as much detail as you can so we can reproduce the issue reliably.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the incorrect behavior or failure.
+      placeholder: "What happens?"
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the steps that consistently reproduce the issue.
+      placeholder: |
+        1. Clone the repo
+        2. ...
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened (error message, crash, etc.).
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, node/pnpm versions, relevant package versions.
+      placeholder: |
+        macOS 13.4
+        Node 20.5.1
+        pnpm 8.15.0
+  - type: textarea
+    id: logs
+    attributes:
+      label: Additional context
+      description: Logs, screenshots, or other supporting information.

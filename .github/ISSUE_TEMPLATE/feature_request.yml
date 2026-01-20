@@ -1,0 +1,36 @@
+name: Feature request
+about: Share ideas or improvements that help the project grow.
+title: "[FEATURE] "
+labels: enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for improving Lattice! Help us understand the motivation and value of this request.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: What capability are you proposing?
+      placeholder: "Allow syncing calendars from other providers..."
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this change important? Who benefits?
+  - type: textarea
+    id: user_story
+    attributes:
+      label: Proposed solution or user story
+      description: Optional: describe how you envision the feature working.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What else did you try or consider?
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: How would this change affect developers or end users?
