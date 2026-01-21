@@ -3,7 +3,17 @@ import { z } from "zod";
 import { DateTime } from "luxon";
 
 import { prisma } from "@lattice/db";
-import { requireMembership } from "@/lib/guards";
+import {
+  fail,
+  ok,
+  ErrorCodes,
+  logAudit,
+  AuditActions,
+  buildRateLimitKey,
+  buildRetryAfterHeader,
+  enforceRateLimit,
+} from "@lattice/shared";
+import { requireOrgAccess } from "@/lib/guards";
 import {
   listCalendars,
   freeBusy,
@@ -12,6 +22,11 @@ import {
   MERGED_SOURCE_HASH,
   blockHash,
 } from "@/lib/google/calendar";
+import {
+  getIdempotencyResponse,
+  saveIdempotencyResponse,
+  computeIdempotencyHash,
+} from "@/lib/idempotency";
 
 export const runtime = "nodejs";
 
@@ -21,12 +36,98 @@ const Body = z.object({
   timeZone: z.string().min(1).optional(),
 });
 
+/**
+ * @openapi
+ * /api/orgs/{orgId}/integrations/google/sync:
+ *   parameters:
+ *     - name: orgId
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *   post:
+ *     summary: Fetches busy intervals from Google Calendar and records busy blocks.
+ *     tags:
+ *       - Integrations
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               rangeStart:
+ *                 type: string
+ *                 format: date
+ *               rangeEnd:
+ *                 type: string
+ *                 format: date
+ *               timeZone:
+ *                 type: string
+ *     responses:
+ *       "200":
+ *         description: Blocks synced.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     blocks:
+ *                       type: integer
+ *       "400":
+ *         description: Validation failure or missing connection/selection.
+ *       "500":
+ *         description: Sync attempt failed.
+ */
 export async function POST(req: Request, { params }: { params: { orgId: string } }) {
-  const access = await requireMembership(params.orgId);
-  if (!access.ok) return NextResponse.json({ error: "not_found" }, { status: access.status });
+  const access = await requireOrgAccess(params.orgId);
+  if (!access.ok) return access.response;
 
-  const userId = access.session.user.id;
+  const userId = access.membership.userId;
+  const syncLimit = await enforceRateLimit(
+    "sync",
+    buildRateLimitKey("sync", [userId])
+  );
+  if (!syncLimit.allowed) {
+    return NextResponse.json(syncLimit.response, {
+      status: 429,
+      headers: buildRetryAfterHeader(syncLimit.retryAfterSeconds),
+    });
+  }
   const body = Body.parse(await req.json());
+  const idempotencyKeyHeader = req.headers.get("Idempotency-Key");
+  const requestHash = computeIdempotencyHash({ params: { orgId: params.orgId }, body });
+
+  const idempotencyResponse = await getIdempotencyResponse({
+    orgId: params.orgId,
+    endpoint: "integrations.google.sync",
+    key: idempotencyKeyHeader,
+    requestHash,
+  });
+
+  if (idempotencyResponse.type === "response") {
+    return NextResponse.json(idempotencyResponse.response.body, {
+      status: idempotencyResponse.response.status,
+    });
+  }
+
+  if (idempotencyResponse.type === "conflict") {
+    return NextResponse.json(
+      fail(ErrorCodes.IDEMPOTENCY_CONFLICT, "idempotency_conflict"),
+      { status: 409 },
+    );
+  }
+
+  if (idempotencyResponse.type === "incomplete") {
+    return NextResponse.json(
+      fail(ErrorCodes.RATE_LIMITED, "idempotency_in_progress"),
+      { status: 429 },
+    );
+  }
+
   const tz = body.timeZone ?? "UTC";
 
   const start = DateTime.fromISO(body.rangeStart ?? DateTime.utc().toISODate()!, { zone: tz }).startOf("day").toUTC();
@@ -36,14 +137,24 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
     where: { userId_provider: { userId, provider: "GOOGLE" } },
     select: { id: true, encryptedRefreshToken: true, status: true },
   });
-  if (!conn || conn.status !== "ACTIVE") return NextResponse.json({ error: "not_connected" }, { status: 400 });
+  if (!conn || conn.status !== "ACTIVE") {
+    return NextResponse.json(
+      fail(ErrorCodes.NOT_CONNECTED, "not_connected"),
+      { status: 400 }
+    );
+  }
 
   const selections = await prisma.calendarSelection.findMany({
     where: { connectionId: conn.id, orgId: params.orgId, isBusySource: true },
     select: { calendarIdHash: true },
   });
   const selectedHashes = new Set(selections.map((s) => s.calendarIdHash));
-  if (!selectedHashes.size) return NextResponse.json({ error: "no_calendars_selected" }, { status: 400 });
+  if (!selectedHashes.size) {
+    return NextResponse.json(
+      fail(ErrorCodes.NO_CALENDARS_SELECTED, "no_calendars_selected"),
+      { status: 400 }
+    );
+  }
 
   const run = await prisma.calendarSyncRun.create({
     data: {
@@ -56,6 +167,19 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
       status: "STARTED",
     },
     select: { id: true },
+  });
+
+  await logAudit({
+    orgId: params.orgId,
+    actorUserId: userId,
+    action: AuditActions.CALENDAR_SYNC_STARTED,
+    targetType: "CalendarSyncRun",
+    targetId: run.id,
+    metadata: {
+      rangeStart: start.toISOString(),
+      rangeEnd: end.toISOString(),
+      timeZone: tz,
+    },
   });
 
   try {
@@ -122,8 +246,33 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
       await tx.calendarSyncRun.update({ where: { id: run.id }, data: { status: "SUCCESS", finishedAt: new Date() } });
     });
 
-    return NextResponse.json({ ok: true, blocks: merged.length });
-  } catch (error) {
+    const payload = ok({ blocks: merged.length });
+
+    await logAudit({
+      orgId: params.orgId,
+      actorUserId: userId,
+      action: AuditActions.CALENDAR_SYNC_SUCCESS,
+      targetType: "CalendarSyncRun",
+      targetId: run.id,
+      metadata: {
+        mergedBlocks: merged.length,
+      },
+    });
+    try {
+      await saveIdempotencyResponse({
+        orgId: params.orgId,
+        endpoint: "integrations.google.sync",
+        key: idempotencyKeyHeader,
+        requestHash,
+        responseStatus: 200,
+        responseBody: payload,
+      });
+    } catch (error) {
+      console.warn("[idempotency] failed to persist sync response", error);
+    }
+
+    return NextResponse.json(payload);
+  } catch (error: unknown) {
     const detail = error instanceof Error ? error.message : String(error);
     await prisma.calendarSyncRun.update({
       where: { id: run.id },
@@ -134,6 +283,20 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
         finishedAt: new Date(),
       },
     });
-    return NextResponse.json({ error: "sync_failed" }, { status: 500 });
+
+    await logAudit({
+      orgId: params.orgId,
+      actorUserId: userId,
+      action: AuditActions.CALENDAR_SYNC_FAILURE,
+      targetType: "CalendarSyncRun",
+      targetId: run.id,
+      metadata: {
+        error: detail,
+      },
+    });
+    return NextResponse.json(
+      fail(ErrorCodes.SYNC_FAILED, "sync_failed", detail),
+      { status: 500 }
+    );
   }
 }

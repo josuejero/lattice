@@ -33,3 +33,5 @@ export type Env = z.infer<typeof EnvSchema>;
 export function parseEnv(raw: Record<string, string | undefined>): Env {
   return EnvSchema.parse(raw);
 }
+
+export const env = parseEnv(process.env as Record<string, string | undefined>);

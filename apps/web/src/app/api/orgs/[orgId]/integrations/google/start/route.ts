@@ -3,15 +3,34 @@ import crypto from "crypto";
 import { google } from "googleapis";
 
 import { env } from "@/lib/env";
-import { requireMembership } from "@/lib/guards";
+import { requireOrgAccess } from "@/lib/guards";
 import { setOauthCookie, createPkcePair } from "@/lib/google/oauth";
 import { getGcalScopes } from "@/lib/google/calendar";
 
 export const runtime = "nodejs";
 
+/**
+ * @openapi
+ * /api/orgs/{orgId}/integrations/google/start:
+ *   parameters:
+ *     - name: orgId
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *   get:
+ *     summary: Starts the Google Calendar OAuth flow for an organization.
+ *     tags:
+ *       - Integrations
+ *     responses:
+ *       "302":
+ *         description: Redirects the browser to Google's consent screen.
+ *       "401":
+ *         description: Unauthorized.
+ */
 export async function GET(_: Request, { params }: { params: { orgId: string } }) {
-  const access = await requireMembership(params.orgId);
-  if (!access.ok) return NextResponse.json({ error: "not_found" }, { status: access.status });
+  const access = await requireOrgAccess(params.orgId);
+  if (!access.ok) return access.response;
 
   const state = crypto.randomBytes(24).toString("base64url");
   const { verifier, challenge } = createPkcePair();
@@ -20,7 +39,7 @@ export async function GET(_: Request, { params }: { params: { orgId: string } })
     state,
     verifier,
     orgId: params.orgId,
-    userId: access.session.user.id,
+    userId: access.membership.userId,
     createdAt: Date.now(),
   });
 

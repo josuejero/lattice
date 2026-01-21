@@ -18,6 +18,8 @@
     "db:logs": "docker compose logs -f",
     "db:generate": "pnpm -C packages/db prisma:generate",
     "db:migrate": "pnpm -C packages/db prisma:migrate",
+    "db:seed": "pnpm -C packages/db prisma db seed",
+    "db:reset": "pnpm -C packages/db prisma migrate reset --force",
     "db:studio": "pnpm -C packages/db prisma:studio"
   },
   "devDependencies": {

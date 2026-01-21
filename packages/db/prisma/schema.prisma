@@ -20,6 +20,7 @@ model User {
   calendarConnections CalendarConnection[]
   busyBlocks          BusyBlock[]
   syncRuns            CalendarSyncRun[]
+  auditLogs           AuditLog[] @relation("UserAuditLogs")
 
   availabilityTemplates AvailabilityTemplate[]
   availabilityOverrides AvailabilityOverride[]
@@ -84,6 +85,25 @@ model Org {
   availabilityTemplates AvailabilityTemplate[]
   availabilityOverrides AvailabilityOverride[]
   scheduledEvents ScheduledEvent[]
+  idempotencyKeys IdempotencyKey[]
+  auditLogs         AuditLog[] @relation("OrgAuditLogs")
+}
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  orgId        String
+  actorUserId  String?
+  action       AuditAction
+  targetType   String?
+  targetId     String?
+  metadata     Json?
+  createdAt    DateTime    @default(now())
+
+  org        Org  @relation("OrgAuditLogs", fields: [orgId], references: [id], onDelete: Cascade)
+  actorUser  User? @relation("UserAuditLogs", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@index([orgId, action, createdAt])
 }
 
 model Membership {
@@ -104,6 +124,25 @@ enum Role {
   ADMIN
   LEADER
   MEMBER
+}
+
+enum AuditAction {
+  ORG_CREATED
+  MEMBER_INVITED
+  MEMBER_ROLE_UPDATED
+  MEMBER_REMOVED
+  AVAILABILITY_TEMPLATE_UPDATED
+  AVAILABILITY_OVERRIDE_CREATED
+  AVAILABILITY_OVERRIDE_DELETED
+  CALENDAR_CONNECTED
+  CALENDAR_DISCONNECTED
+  CALENDAR_SYNC_STARTED
+  CALENDAR_SYNC_SUCCESS
+  CALENDAR_SYNC_FAILURE
+  SUGGESTION_REQUEST_CREATED
+  SLOT_CONFIRMED
+  WRITEBACK_ATTEMPTED
+  ACCEPTANCE_CHECK
 }
 
 // --- Phase 2: Availability ---
@@ -256,6 +295,7 @@ model SuggestionRequest {
   stepMinutes     Int      @default(15)
   dayStartMinute  Int      @default(480)
   dayEndMinute    Int      @default(1200)
+  dataFingerprint String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -301,6 +341,23 @@ model SuggestionCandidate {
 
   @@index([requestId, rank])
   @@index([startAt])
+}
+
+model IdempotencyKey {
+  id             String   @id @default(cuid())
+  orgId          String
+  key            String
+  endpoint       String
+  requestHash    String
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, endpoint, key])
+  @@index([expiresAt])
 }
 
 enum ScheduledEventStatus {

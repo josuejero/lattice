@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@lattice/db";
+import { fail, ok, ErrorCodes, logAudit, AuditActions } from "@lattice/shared";
 import { env } from "@/lib/env";
-import { requireMembership } from "@/lib/guards";
-import { roleAtLeast, type OrgRole } from "@/lib/rbac";
+import { requireOrgAccess } from "@/lib/guards";
 import { createGoogleCalendarEvent } from "@/lib/google/calendar";
 import { findConflictingUserIds } from "@/lib/events/conflicts";
+import {
+  getIdempotencyResponse,
+  saveIdempotencyResponse,
+  computeIdempotencyHash,
+} from "@/lib/idempotency";
+import { loadSuggestionAvailabilityState } from "@/lib/suggestions/state";
 
 export const runtime = "nodejs";
 
@@ -19,31 +25,112 @@ const Body = z.object({
 });
 
 async function requireLeader(orgId: string) {
-  const access = await requireMembership(orgId);
-  if (!access.ok) return access;
-  const role = access.membership?.role as OrgRole | undefined;
-  if (!role || !roleAtLeast(role, "LEADER")) {
-    return { ok: false as const, status: 403 as const, error: "forbidden" as const };
-  }
-  return access;
+  return requireOrgAccess(orgId, { minRole: "LEADER" });
 }
 
-function overlaps(start: Date, end: Date) {
-  return { startUtc: { lt: end }, endUtc: { gt: start } };
-}
-
+/**
+ * @openapi
+ * /api/orgs/{orgId}/suggestions/requests/{requestId}/confirm:
+ *   parameters:
+ *     - name: orgId
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *     - name: requestId
+ *       in: path
+ *       required: true
+ *       schema:
+ *         type: string
+ *   post:
+ *     summary: Confirms a suggestion candidate and persists the scheduled event.
+ *     tags:
+ *       - Suggestions
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               candidateRank:
+ *                 type: integer
+ *               title:
+ *                 type: string
+ *               notes:
+ *                 type: string
+ *               writeBackToGoogle:
+ *                 type: boolean
+ *               conflictCheck:
+ *                 type: boolean
+ *             required:
+ *               - candidateRank
+ *     responses:
+ *       "200":
+ *         description: Event created or retrieved with attendees.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     event:
+ *                       type: object
+ *       "400":
+ *         description: Validation error, invalid rank, or missing scopes.
+ *       "401":
+ *         description: Authentication required.
+ *       "404":
+ *         description: Feature disabled or request not found.
+ *       "409":
+ *         description: Conflict detected with busy intervals.
+ */
 export async function POST(req: Request, ctx: { params: Promise<{ orgId: string; requestId: string }> }) {
   const { orgId, requestId } = await ctx.params;
 
   if (!env.SUGGESTIONS_ENABLED || !env.EVENTS_ENABLED) {
-    return NextResponse.json({ error: "disabled" }, { status: 404 });
+    return NextResponse.json(
+      fail(ErrorCodes.FEATURE_DISABLED, "disabled"),
+      { status: 404 }
+    );
   }
 
   const access = await requireLeader(orgId);
-  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
-  const userId = access.membership!.userId;
+  if (!access.ok) return access.response;
+  const userId = access.membership.userId;
 
   const body = Body.parse(await req.json());
+  const idempotencyKeyHeader = req.headers.get("Idempotency-Key");
+  const requestHash = computeIdempotencyHash({ params: { orgId, requestId }, body });
+
+  const idempotencyResponse = await getIdempotencyResponse({
+    orgId,
+    endpoint: "suggestions.confirm",
+    key: idempotencyKeyHeader,
+    requestHash,
+  });
+
+  if (idempotencyResponse.type === "response") {
+    return NextResponse.json(idempotencyResponse.response.body, {
+      status: idempotencyResponse.response.status,
+    });
+  }
+
+  if (idempotencyResponse.type === "conflict") {
+    return NextResponse.json(
+      fail(ErrorCodes.IDEMPOTENCY_CONFLICT, "idempotency_conflict"),
+      { status: 409 },
+    );
+  }
+
+  if (idempotencyResponse.type === "incomplete") {
+    return NextResponse.json(
+      fail(ErrorCodes.RATE_LIMITED, "idempotency_in_progress"),
+      { status: 429 },
+    );
+  }
 
   const requestRow = await prisma.suggestionRequest.findFirst({
     where: { id: requestId, orgId },
@@ -53,35 +140,54 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string;
     },
   });
 
-  if (!requestRow) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (!requestRow) {
+    return NextResponse.json(
+      fail(ErrorCodes.NOT_FOUND, "not_found"),
+      { status: 404 }
+    );
+  }
 
   const candidate = requestRow.candidates[0];
-  if (!candidate) return NextResponse.json({ error: "bad_candidate_rank" }, { status: 400 });
+  if (!candidate) {
+    return NextResponse.json(
+      fail(ErrorCodes.BAD_CANDIDATE_RANK, "bad_candidate_rank"),
+      { status: 400 }
+    );
+  }
 
   const startUtc = candidate.startAt;
   const endUtc = candidate.endAt;
   const attendeeUserIds = requestRow.attendees.map((a) => a.userId);
 
-  if (body.conflictCheck && attendeeUserIds.length) {
-    const busyConflicts = await prisma.busyBlock.findMany({
-      where: {
-        orgId,
-        userId: { in: attendeeUserIds },
-        ...overlaps(startUtc, endUtc),
-      },
-      select: { userId: true, startUtc: true, endUtc: true },
-    });
+  const availabilityState = await loadSuggestionAvailabilityState({
+    orgId,
+    attendeeUserIds,
+    rangeStart: requestRow.rangeStart,
+    rangeEnd: requestRow.rangeEnd,
+  });
 
-    const overrideConflicts = await prisma.availabilityOverride.findMany({
-      where: {
-        orgId,
-        userId: { in: attendeeUserIds },
-        kind: "UNAVAILABLE",
-        startAt: { lt: endUtc },
-        endAt: { gt: startUtc },
-      },
-      select: { userId: true, startAt: true, endAt: true },
-    });
+  if (
+    requestRow.dataFingerprint &&
+    requestRow.dataFingerprint !== availabilityState.dataFingerprint
+  ) {
+    return NextResponse.json(
+      fail(ErrorCodes.CONFLICT, "conflict_detected", {
+        previousFingerprint: requestRow.dataFingerprint,
+        currentFingerprint: availabilityState.dataFingerprint,
+      }),
+      { status: 409 },
+    );
+  }
+
+  if (body.conflictCheck && attendeeUserIds.length) {
+    const busyConflicts = availabilityState.busyBlocks.filter((block) =>
+      intervalsOverlap(startUtc, endUtc, block.startUtc, block.endUtc),
+    );
+    const overrideConflicts = availabilityState.overrides.filter(
+      (override) =>
+        override.kind === "UNAVAILABLE" &&
+        intervalsOverlap(startUtc, endUtc, override.startAt, override.endAt),
+    );
 
     const conflictUserIds = findConflictingUserIds({
       intervalStart: startUtc,
@@ -92,8 +198,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string;
       ],
     });
 
+    await logAudit({
+      orgId,
+      actorUserId: userId,
+      action: AuditActions.ACCEPTANCE_CHECK,
+      targetType: "SuggestionRequest",
+      targetId: requestRow.id,
+      metadata: {
+        candidateRank: body.candidateRank,
+        conflictDetected: conflictUserIds.length > 0,
+        conflictUserIds,
+      },
+    });
+
     if (conflictUserIds.length) {
-      return NextResponse.json({ error: "conflict", conflictUserIds }, { status: 409 });
+      return NextResponse.json(
+        fail(ErrorCodes.CONFLICT, "conflict", { conflictUserIds }),
+        { status: 409 },
+      );
     }
   }
 
@@ -179,11 +301,36 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string;
           writeBackError: null,
         },
       });
-    } catch (error) {
+
+      await logAudit({
+        orgId,
+        actorUserId: userId,
+        action: AuditActions.WRITEBACK_ATTEMPTED,
+        targetType: "ScheduledEvent",
+        targetId: event.id,
+        metadata: {
+          source: "suggestions.confirm",
+          success: true,
+        },
+      });
+    } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       await prisma.scheduledEvent.update({
         where: { id: event.id },
         data: { writeBackStatus: "ERROR", writeBackError: message },
+      });
+
+      await logAudit({
+        orgId,
+        actorUserId: userId,
+        action: AuditActions.WRITEBACK_ATTEMPTED,
+        targetType: "ScheduledEvent",
+        targetId: event.id,
+        metadata: {
+          source: "suggestions.confirm",
+          success: false,
+          error: message,
+        },
       });
     }
   }
@@ -193,5 +340,37 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string;
     include: { attendees: { include: { user: { select: { id: true, email: true, name: true } } } } },
   });
 
-  return NextResponse.json({ event: refreshed });
+  await logAudit({
+    orgId,
+    actorUserId: userId,
+    action: AuditActions.SLOT_CONFIRMED,
+    targetType: "ScheduledEvent",
+    targetId: refreshed?.id ?? event.id,
+    metadata: {
+      requestId,
+      candidateRank: body.candidateRank,
+      startUtc: event.startUtc.toISOString(),
+      endUtc: event.endUtc.toISOString(),
+    },
+  });
+
+  const payload = ok({ event: refreshed });
+  try {
+    await saveIdempotencyResponse({
+      orgId,
+      endpoint: "suggestions.confirm",
+      key: idempotencyKeyHeader,
+      requestHash,
+      responseStatus: 200,
+      responseBody: payload,
+    });
+  } catch (error) {
+    console.warn("[idempotency] failed to persist confirm response", error);
+  }
+
+  return NextResponse.json(payload);
+}
+
+function intervalsOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
+  return bStart < aEnd && bEnd > aStart;
 }

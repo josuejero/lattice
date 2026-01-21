@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { prisma } from "@lattice/db";
+import { logAudit, AuditActions } from "@lattice/shared";
 import { env } from "@/lib/env";
 import { readOauthCookie, clearOauthCookie } from "@/lib/google/oauth";
 import { encryptString } from "@/lib/crypto/secretbox";
@@ -9,6 +10,30 @@ import { getGcalScopes } from "@/lib/google/calendar";
 
 export const runtime = "nodejs";
 
+/**
+ * @openapi
+ * /api/integrations/google/callback:
+ *   get:
+ *     summary: Handles the Google OAuth callback and persists calendar credentials.
+ *     tags:
+ *       - Integrations
+ *     parameters:
+ *       - name: code
+ *         in: query
+ *         schema:
+ *           type: string
+ *       - name: state
+ *         in: query
+ *         schema:
+ *           type: string
+ *       - name: error
+ *         in: query
+ *         schema:
+ *           type: string
+ *     responses:
+ *       "302":
+ *         description: Redirects back to the integrations page with a result flag.
+ */
 async function exchangeToken(args: { code: string; codeVerifier: string }) {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -58,22 +83,36 @@ export async function GET(req: Request) {
   if (!token.refresh_token) return NextResponse.redirect(new URL("/integrations?gcal=no_refresh_token", url.origin));
 
   const defaultScopes = getGcalScopes().join(" ");
+  const scopes = token.scope ?? defaultScopes;
 
-  await prisma.calendarConnection.upsert({
+  const connection = await prisma.calendarConnection.upsert({
     where: { userId_provider: { userId, provider: "GOOGLE" } },
     update: {
-      scopes: token.scope ?? defaultScopes,
+      scopes,
       encryptedRefreshToken: encryptString(token.refresh_token),
       status: "ACTIVE",
     },
     create: {
       userId,
       provider: "GOOGLE",
-      scopes: token.scope ?? defaultScopes,
+      scopes,
       encryptedRefreshToken: encryptString(token.refresh_token),
       status: "ACTIVE",
     },
+    select: { id: true },
   });
+
+  const orgIdFromCookie = typeof cookie["orgId"] === "string" ? cookie["orgId"] : null;
+  if (orgIdFromCookie) {
+    await logAudit({
+      orgId: orgIdFromCookie,
+      actorUserId: userId,
+      action: AuditActions.CALENDAR_CONNECTED,
+      targetType: "CalendarConnection",
+      targetId: connection.id,
+      metadata: { provider: "GOOGLE", scopes },
+    });
+  }
 
   return NextResponse.redirect(new URL("/integrations?gcal=connected", url.origin));
 }

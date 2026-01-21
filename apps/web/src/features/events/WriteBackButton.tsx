@@ -1,37 +1,41 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
+
+import { ApiError, fetchJson } from "@/lib/http"
+import { Button } from "@/components/ui/button"
 
 export function WriteBackButton(props: { orgId: string; eventId: string }) {
-  const [status, setStatus] = useState<string>("idle")
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function onClick() {
-    setStatus("loading")
+    setIsLoading(true)
     setError(null)
 
-    const res = await fetch(`/api/orgs/${props.orgId}/events/${props.eventId}/writeback/google`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({}),
-    })
-
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      setStatus("error")
-      setError(json?.error ?? "writeback_failed")
-      return
+    try {
+      await fetchJson(`/api/orgs/${props.orgId}/events/${props.eventId}/writeback/google`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      toast.success("Event written to Google Calendar")
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "writeback_failed"
+      setError(message)
+      toast.error(message)
+    } finally {
+      setIsLoading(false)
     }
-
-    setStatus("done")
   }
 
   return (
-    <div>
-      <button onClick={onClick} disabled={status === "loading"}>
-        {status === "loading" ? "Writing to Google..." : "Write to Google Calendar"}
-      </button>
-      {error ? <div style={{ color: "crimson", marginTop: 8 }}>{error}</div> : null}
+    <div className="space-y-2">
+      <Button onClick={onClick} disabled={isLoading}>
+        {isLoading ? "Writing to Google..." : "Write to Google Calendar"}
+      </Button>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   )
 }

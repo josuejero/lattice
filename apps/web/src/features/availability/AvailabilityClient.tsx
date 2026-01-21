@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { DateTime } from "luxon"
+import { toast } from "sonner"
+
 import {
   normalizeIntervals,
   subtractIntervals,
@@ -14,6 +16,25 @@ import {
   toUtcIsoFromLocal,
   overrideToLocalIntervalForDate,
 } from "@/lib/availability/time"
+import { ApiError, fetchJson } from "@/lib/http"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 type WindowDTO = { dayOfWeek: number; startMinute: number; endMinute: number }
 type OverrideDTO = {
@@ -24,7 +45,7 @@ type OverrideDTO = {
   note?: string | null
 }
 
-const DAYS: { dayOfWeek: number; label: string }[] = [
+const DAYS = [
   { dayOfWeek: 1, label: "Mon" },
   { dayOfWeek: 2, label: "Tue" },
   { dayOfWeek: 3, label: "Wed" },
@@ -35,13 +56,14 @@ const DAYS: { dayOfWeek: number; label: string }[] = [
 ]
 
 export default function AvailabilityClient({ orgId }: { orgId: string }) {
-  const detectedTZ = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", [])
+  const detectedTZ = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    [],
+  )
 
   const [timeZone, setTimeZone] = useState<string>(detectedTZ)
   const [windows, setWindows] = useState<WindowDTO[]>([])
   const [overrides, setOverrides] = useState<OverrideDTO[]>([])
-  const [status, setStatus] = useState<string>("")
-
   const [previewDate, setPreviewDate] = useState<string>(() => DateTime.now().toISODate()!)
 
   const [ovDate, setOvDate] = useState<string>(() => DateTime.now().toISODate()!)
@@ -50,100 +72,142 @@ export default function AvailabilityClient({ orgId }: { orgId: string }) {
   const [ovKind, setOvKind] = useState<"AVAILABLE" | "UNAVAILABLE">("UNAVAILABLE")
   const [ovNote, setOvNote] = useState<string>("")
 
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isCreatingOverride, setIsCreatingOverride] = useState(false)
+  const [isDeletingOverride, setIsDeletingOverride] = useState(false)
+  const [overrideToDelete, setOverrideToDelete] = useState<OverrideDTO | null>(null)
+
   useEffect(() => {
-    ;(async () => {
-      setStatus("Loading…")
-      const [tRes, oRes] = await Promise.all([
-        fetch(`/api/orgs/${orgId}/availability/me/template`, { cache: "no-store" }),
-        fetch(`/api/orgs/${orgId}/availability/me/overrides`, { cache: "no-store" }),
-      ])
+    void (async () => {
+      setIsLoading(true)
+      try {
+        const [template, overridesData] = await Promise.all([
+          fetchJson<{ timeZone?: string; windows?: WindowDTO[] }>(
+            `/api/orgs/${orgId}/availability/me/template`,
+            { cache: "no-store" },
+          ),
+          fetchJson<{ overrides?: OverrideDTO[] }>(
+            `/api/orgs/${orgId}/availability/me/overrides`,
+            { cache: "no-store" },
+          ),
+        ])
 
-      if (tRes.ok) {
-        const t = await tRes.json()
-        setTimeZone(t.timeZone || detectedTZ)
-        setWindows(t.windows || [])
+        setTimeZone(template?.timeZone ?? detectedTZ)
+        setWindows(template?.windows ?? [])
+        setOverrides(overridesData?.overrides ?? [])
+      } catch {
+        toast.error("Unable to load availability data")
+        setWindows([])
+        setOverrides([])
+      } finally {
+        setIsLoading(false)
       }
-
-      if (oRes.ok) {
-        const o = await oRes.json()
-        setOverrides(o.overrides || [])
-      }
-
-      setStatus("")
     })()
-  }, [orgId, detectedTZ])
+  }, [detectedTZ, orgId])
 
   function addWindow(dayOfWeek: number) {
-    setWindows((w) => [...w, { dayOfWeek, startMinute: 9 * 60, endMinute: 17 * 60 }])
+    setWindows((current) => [
+      ...current,
+      { dayOfWeek, startMinute: 9 * 60, endMinute: 17 * 60 },
+    ])
   }
 
   function updateWindow(idx: number, patch: Partial<WindowDTO>) {
-    setWindows((w) => w.map((x, i) => (i === idx ? { ...x, ...patch } : x)))
+    setWindows((current) =>
+      current.map((window, index) => (index === idx ? { ...window, ...patch } : window)),
+    )
   }
 
   function deleteWindow(idx: number) {
-    setWindows((w) => w.filter((_, i) => i !== idx))
+    setWindows((current) => current.filter((_, index) => index !== idx))
   }
 
   async function saveTemplate() {
-    setStatus("Saving…")
-    const res = await fetch(`/api/orgs/${orgId}/availability/me/template`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ timeZone, windows }),
-    })
+    setIsSaving(true)
+    try {
+      const updated = await fetchJson<{ timeZone: string; windows: WindowDTO[] }>(
+        `/api/orgs/${orgId}/availability/me/template`,
+        {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ timeZone, windows }),
+        },
+      )
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      setStatus(`Save failed: ${err?.error ?? res.status}`)
-      return
+      setTimeZone(updated.timeZone)
+      setWindows(updated.windows)
+      toast.success("Weekly template saved")
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Save failed"
+      toast.error(`Save failed: ${message}`)
+    } finally {
+      setIsSaving(false)
     }
-
-    const updated = await res.json()
-    setTimeZone(updated.timeZone)
-    setWindows(updated.windows)
-    setStatus("Saved")
-    setTimeout(() => setStatus(""), 1200)
   }
 
   async function createOverride() {
-    setStatus("Creating override…")
+    setIsCreatingOverride(true)
+    try {
+      const startAt = toUtcIsoFromLocal(ovDate, ovStart, timeZone)
+      const endAt = toUtcIsoFromLocal(ovDate, ovEnd, timeZone)
 
-    const startAt = toUtcIsoFromLocal(ovDate, ovStart, timeZone)
-    const endAt = toUtcIsoFromLocal(ovDate, ovEnd, timeZone)
+      const json = await fetchJson<{ override: OverrideDTO }>(
+        `/api/orgs/${orgId}/availability/me/overrides`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            startAt,
+            endAt,
+            kind: ovKind,
+            note: ovNote.trim() ? ovNote.trim() : undefined,
+          }),
+        },
+      )
 
-    const res = await fetch(`/api/orgs/${orgId}/availability/me/overrides`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        startAt,
-        endAt,
-        kind: ovKind,
-        note: ovNote.trim() ? ovNote.trim() : undefined,
-      }),
-    })
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      setStatus(`Create failed: ${err?.error ?? res.status}`)
-      return
+      setOverrides((prev) =>
+        [...prev, json.override].sort((a, b) => a.startAt.localeCompare(b.startAt)),
+      )
+      toast.success("Override added")
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Create failed"
+      toast.error(message)
+    } finally {
+      setIsCreatingOverride(false)
     }
-
-    const json = await res.json()
-    setOverrides((o) => [...o, json.override].sort((a, b) => a.startAt.localeCompare(b.startAt)))
-    setStatus("Override created")
-    setTimeout(() => setStatus(""), 1200)
   }
 
   async function deleteOverride(id: string) {
-    setStatus("Deleting override…")
-    const res = await fetch(`/api/orgs/${orgId}/availability/me/overrides/${id}`, { method: "DELETE" })
-    if (!res.ok) {
-      setStatus(`Delete failed: ${res.status}`)
-      return
+    setIsDeletingOverride(true)
+    try {
+      await fetchJson(`/api/orgs/${orgId}/availability/me/overrides/${id}`, {
+        method: "DELETE",
+      })
+      setOverrides((current) => current.filter((override) => override.id !== id))
+      toast.success("Override deleted")
+      setOverrideToDelete(null)
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Delete failed"
+      toast.error(message)
+    } finally {
+      setIsDeletingOverride(false)
     }
-    setOverrides((o) => o.filter((x) => x.id !== id))
-    setStatus("")
   }
 
   const effectiveForPreview = useMemo(() => {
@@ -158,168 +222,253 @@ export default function AvailabilityClient({ orgId }: { orgId: string }) {
 
     let current: Interval[] = base
 
-    for (const ov of overrides) {
-      const local = overrideToLocalIntervalForDate(ov, previewDate, timeZone)
+    for (const override of overrides) {
+      const local = overrideToLocalIntervalForDate(override, previewDate, timeZone)
       if (!local) continue
 
-      if (ov.kind === "UNAVAILABLE") current = subtractIntervals(current, [local])
+      if (override.kind === "UNAVAILABLE") current = subtractIntervals(current, [local])
       else current = unionIntervals(current, [local])
     }
 
     return current
-  }, [previewDate, timeZone, windows, overrides])
+  }, [overrides, previewDate, timeZone, windows])
 
   return (
-    <div style={{ marginTop: 16, display: "grid", gap: 16 }}>
-      {status ? (
-        <div>
-          <em>{status}</em>
+    <div className="space-y-8">
+      <section className="space-y-4 rounded-2xl border border-border bg-background/70 p-6">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold">Weekly template</h2>
+          <p className="text-sm text-muted-foreground">
+            Configure the hours you are usually available and save a template for the team.
+          </p>
         </div>
-      ) : null}
 
-      <section style={{ border: "1px solid #333", borderRadius: 8, padding: 12 }}>
-        <h2>Weekly template</h2>
+        <div className="space-y-4">
+          <label className="flex flex-col gap-2 text-sm font-medium">
+            Time zone
+            <Input value={timeZone} onChange={(event) => setTimeZone(event.target.value)} />
+          </label>
 
-        <label style={{ display: "block", marginBottom: 8 }}>
-          Time zone:&nbsp;
-          <input value={timeZone} onChange={(e) => setTimeZone(e.target.value)} style={{ width: 260 }} />
-          <span style={{ marginLeft: 8, opacity: 0.7 }}>(IANA, e.g. America/New_York)</span>
-        </label>
+          {isLoading ? (
+            <div className="rounded-lg border border-dashed border-border/70 px-4 py-3">
+              <p className="text-sm text-muted-foreground">Loading windows…</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {DAYS.map((day) => {
+                const dayWindows = windows
+                  .map((win, idx) => ({ ...win, idx }))
+                  .filter((win) => win.dayOfWeek === day.dayOfWeek)
+                  .sort((a, b) => a.startMinute - b.startMinute)
 
-        <div style={{ display: "grid", gap: 12 }}>
-          {DAYS.map((d) => {
-            const dayWindows = windows
-              .map((w, idx) => ({ ...w, idx }))
-              .filter((w) => w.dayOfWeek === d.dayOfWeek)
-              .sort((a, b) => a.startMinute - b.startMinute)
+                return (
+                  <div
+                    key={day.dayOfWeek}
+                    className="rounded-2xl border border-border/70 bg-muted/5 p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        {day.label}
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        onClick={() => addWindow(day.dayOfWeek)}
+                      >
+                        + Add window
+                      </Button>
+                    </div>
 
-            return (
-              <div
-                key={d.dayOfWeek}
-                style={{ padding: 8, border: "1px solid #444", borderRadius: 8 }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong>{d.label}</strong>
-                  <button type="button" onClick={() => addWindow(d.dayOfWeek)}>
-                    + Add window
-                  </button>
-                </div>
-
-                {dayWindows.length === 0 ? (
-                  <div style={{ opacity: 0.7, marginTop: 6 }}>No windows</div>
-                ) : (
-                  <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
-                    {dayWindows.map((w) => (
-                      <div key={w.idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <input
-                          type="time"
-                          value={timeStringFromMinutes(w.startMinute)}
-                          onChange={(e) =>
-                            updateWindow(w.idx, {
-                              startMinute: minutesFromTimeString(e.target.value),
-                            })
-                          }
-                        />
-                        <span>to</span>
-                        <input
-                          type="time"
-                          value={timeStringFromMinutes(w.endMinute)}
-                          onChange={(e) =>
-                            updateWindow(w.idx, {
-                              endMinute: minutesFromTimeString(e.target.value),
-                            })
-                          }
-                        />
-                        <button type="button" onClick={() => deleteWindow(w.idx)}>
-                          Delete
-                        </button>
+                    {dayWindows.length === 0 ? (
+                      <p className="mt-3 text-sm text-muted-foreground">No windows yet.</p>
+                    ) : (
+                      <div className="mt-3 flex flex-col gap-3">
+                        {dayWindows.map((win) => (
+                          <div
+                            key={win.idx}
+                            className="flex flex-wrap items-center gap-3"
+                          >
+                            <Input
+                              type="time"
+                              value={timeStringFromMinutes(win.startMinute)}
+                              onChange={(event) =>
+                                updateWindow(win.idx, {
+                                  startMinute: minutesFromTimeString(event.target.value) ?? win.startMinute,
+                                })
+                              }
+                              className="w-28"
+                            />
+                            <span className="text-sm text-muted-foreground">to</span>
+                            <Input
+                              type="time"
+                              value={timeStringFromMinutes(win.endMinute)}
+                              onChange={(event) =>
+                                updateWindow(win.idx, {
+                                  endMinute: minutesFromTimeString(event.target.value) ?? win.endMinute,
+                                })
+                              }
+                              className="w-28"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              type="button"
+                              onClick={() => deleteWindow(win.idx)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
-            )
-          })}
+                )
+              })}
+            </div>
+          )}
         </div>
 
-        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-          <button type="button" onClick={saveTemplate}>
-            Save template
-          </button>
+        <div className="flex justify-end">
+          <Button onClick={saveTemplate} disabled={isSaving || isLoading}>
+            {isSaving ? "Saving…" : "Save template"}
+          </Button>
         </div>
       </section>
 
-      <section style={{ border: "1px solid #333", borderRadius: 8, padding: 12 }}>
-        <h2>Overrides</h2>
-
-        <div style={{ display: "grid", gap: 8, maxWidth: 520 }}>
-          <label>
-            Date:&nbsp;
-            <input type="date" value={ovDate} onChange={(e) => setOvDate(e.target.value)} />
-          </label>
-          <label>
-            Start:&nbsp;
-            <input type="time" value={ovStart} onChange={(e) => setOvStart(e.target.value)} />
-          </label>
-          <label>
-            End:&nbsp;
-            <input type="time" value={ovEnd} onChange={(e) => setOvEnd(e.target.value)} />
-          </label>
-          <label>
-            Kind:&nbsp;
-            <select value={ovKind} onChange={(e) => setOvKind(e.target.value as "AVAILABLE" | "UNAVAILABLE")}>
-              <option value="UNAVAILABLE">UNAVAILABLE (subtract)</option>
-              <option value="AVAILABLE">AVAILABLE (add)</option>
-            </select>
-          </label>
-          <label>
-            Note (optional):&nbsp;
-            <input value={ovNote} onChange={(e) => setOvNote(e.target.value)} />
-          </label>
-          <button type="button" onClick={createOverride}>
-            Create override
-          </button>
+      <section className="space-y-4 rounded-2xl border border-border bg-background/70 p-6">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold">Overrides</h2>
+          <p className="text-sm text-muted-foreground">
+            Add specific dates where your availability differs from the weekly template.
+          </p>
         </div>
 
-        <div style={{ marginTop: 12 }}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="flex flex-col gap-2 text-sm font-medium">
+            Date
+            <Input type="date" value={ovDate} onChange={(event) => setOvDate(event.target.value)} />
+          </label>
+          <label className="flex flex-col gap-2 text-sm font-medium">
+            Start
+            <Input type="time" value={ovStart} onChange={(event) => setOvStart(event.target.value)} />
+          </label>
+          <label className="flex flex-col gap-2 text-sm font-medium">
+            End
+            <Input type="time" value={ovEnd} onChange={(event) => setOvEnd(event.target.value)} />
+          </label>
+          <div className="flex flex-col gap-2 text-sm font-medium">
+            <span>Kind</span>
+            <Select value={ovKind} onValueChange={(value) => setOvKind(value as "AVAILABLE" | "UNAVAILABLE")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Pick a kind" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AVAILABLE">AVAILABLE (add)</SelectItem>
+                <SelectItem value="UNAVAILABLE">UNAVAILABLE (subtract)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <label className="flex flex-col gap-2 text-sm font-medium md:col-span-2">
+            Note (optional)
+            <Input value={ovNote} onChange={(event) => setOvNote(event.target.value)} />
+          </label>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={createOverride} disabled={isCreatingOverride}>
+            {isCreatingOverride ? "Creating…" : "Create override"}
+          </Button>
+        </div>
+
+        <div className="space-y-3">
           {overrides.length === 0 ? (
-            <div style={{ opacity: 0.7 }}>No overrides yet</div>
+            <p className="text-sm text-muted-foreground">No overrides yet.</p>
           ) : (
-            <ul>
-              {overrides.map((o) => (
-                <li key={o.id}>
-                  <code>{o.kind}</code> {o.startAt} → {o.endAt} {o.note ? `(${o.note})` : ""}
-                  &nbsp;<button type="button" onClick={() => deleteOverride(o.id)}>
+            <div className="space-y-2">
+              {overrides.map((override) => (
+                <div
+                  key={override.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/5 px-4 py-3"
+                >
+                  <div className="flex flex-col gap-1 text-sm">
+                    <span>
+                      <strong>{override.kind}</strong> {override.startAt} → {override.endAt}
+                    </span>
+                    {override.note ? (
+                      <span className="text-xs text-muted-foreground">{override.note}</span>
+                    ) : null}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    onClick={() => setOverrideToDelete(override)}
+                  >
                     Delete
-                  </button>
-                </li>
+                  </Button>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </section>
 
-      <section style={{ border: "1px solid #333", borderRadius: 8, padding: 12 }}>
-        <h2>Effective availability preview</h2>
-        <label>
-          Date:&nbsp;
-          <input type="date" value={previewDate} onChange={(e) => setPreviewDate(e.target.value)} />
-        </label>
-
-        <div style={{ marginTop: 8 }}>
+      <section className="space-y-4 rounded-2xl border border-border bg-background/70 p-6">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold">Effective availability preview</h2>
+          <p className="text-sm text-muted-foreground">
+            See how weekly windows and overrides combine for a particular date.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-2 text-sm font-medium">
+            Date
+            <Input type="date" value={previewDate} onChange={(event) => setPreviewDate(event.target.value)} />
+          </label>
           {effectiveForPreview.length === 0 ? (
-            <div style={{ opacity: 0.7 }}>No availability</div>
+            <p className="text-sm text-muted-foreground">No availability for that day.</p>
           ) : (
-            <ul>
-              {effectiveForPreview.map((i, idx) => (
-                <li key={idx}>
-                  {timeStringFromMinutes(i.start)} – {timeStringFromMinutes(i.end)} ({timeZone})
+            <ul className="space-y-2 text-sm">
+              {effectiveForPreview.map((interval, index) => (
+                <li key={index} className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2">
+                  <span className="font-semibold">
+                    {timeStringFromMinutes(interval.start)} – {timeStringFromMinutes(interval.end)}
+                  </span>
+                  <span className="text-muted-foreground">({timeZone})</span>
                 </li>
               ))}
             </ul>
           )}
         </div>
       </section>
+
+      <Dialog
+        open={Boolean(overrideToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setOverrideToDelete(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete override</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The override will be removed permanently.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setOverrideToDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => overrideToDelete && deleteOverride(overrideToDelete.id)}
+              disabled={isDeletingOverride}
+            >
+              {isDeletingOverride ? "Deleting…" : "Delete override"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
