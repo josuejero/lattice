@@ -4,19 +4,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   turbopack: {},
   transpilePackages: ["@lattice/db", "@lattice/shared"],
-  webpack(config) {
-    const alias = config.resolve?.alias ?? {};
-    return {
-      ...config,
-      resolve: {
-        ...config.resolve,
-        alias: {
-          ...alias,
-          "@lattice/db": path.resolve(__dirname, "../../packages/db/dist/index.js"),
-          "@lattice/shared": path.resolve(__dirname, "../../packages/shared/dist/index.js"),
-        },
-      },
+  webpack: (config) => {
+    config.resolve = config.resolve ?? {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@lattice/shared": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
+      "@lattice/db": path.resolve(__dirname, "../../packages/db/src/index.ts"),
     };
+    return config;
   },
 };
 

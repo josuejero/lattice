@@ -94,4 +94,6 @@ fi
 apply_prisma_migrations
 
 log "Running Playwright e2e suite..."
+log "Generating Prisma client in packages/db..."
+pnpm -C packages/db prisma generate
 PLAYWRIGHT_TEST=1 pnpm -C apps/web test:e2e:run

@@ -2,9 +2,7 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { Prisma } from "@prisma/client";
-
-import { prisma } from "@lattice/db";
+import { Prisma, prisma } from "@lattice/db";
 import { env } from "@/lib/env";
 
 const providers: NextAuthOptions["providers"] = [];

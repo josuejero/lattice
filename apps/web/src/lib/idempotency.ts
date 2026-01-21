@@ -1,7 +1,5 @@
 import { createHash } from "crypto";
-import { PrismaClientKnownRequestError } from "@prisma/client";
-
-import { prisma } from "@lattice/db";
+import { Prisma, prisma } from "@lattice/db";
 
 const IDEMPOTENCY_KEY_TTL_MS = 1000 * 60 * 15; // 15 minutes
 
@@ -81,7 +79,7 @@ export async function saveIdempotencyResponse({
       },
     });
   } catch (error: unknown) {
-    if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       // Another process already stored the response.
       return;
     }
