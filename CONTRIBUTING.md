@@ -3,6 +3,7 @@
 ## Quick start
 1. `pnpm -w db:up`
 2. `cp .env.example .env.local`
+   - The template already sets up Postgres, Redis, `AUTH_SECRET`, and `NEXT_PUBLIC_APP_URL`, so the dev-only sign-in provider works without hitting Google OAuth.
 3. `pnpm -w db:migrate`
 4. `pnpm -w dev`
 
