@@ -78,6 +78,34 @@ load_prisma_env() {
   done
 }
 
+ensure_auth_secret() {
+  if [ -n "${AUTH_SECRET:-}" ]; then
+    return
+  fi
+
+  local env_example=".env.example"
+  if [ ! -f "$env_example" ]; then
+    log "AUTH_SECRET missing and $env_example is not available."
+    log "Please set AUTH_SECRET in the environment before running the e2e script."
+    exit 1
+  fi
+
+  local fallback_auth_secret
+  fallback_auth_secret=$(
+    # shellcheck disable=SC1090
+    source "$env_example"
+    printf "%s" "$AUTH_SECRET"
+  )
+
+  if [ -z "$fallback_auth_secret" ]; then
+    log "AUTH_SECRET is not defined inside $env_example."
+    exit 1
+  fi
+
+  log "AUTH_SECRET missing; using default from $env_example for the test run."
+  export AUTH_SECRET="$fallback_auth_secret"
+}
+
 apply_prisma_migrations() {
   log "Applying Prisma migrations..."
   load_prisma_env
@@ -98,6 +126,8 @@ else
 fi
 
 apply_prisma_migrations
+
+ensure_auth_secret
 
 build_workspace_packages
 
