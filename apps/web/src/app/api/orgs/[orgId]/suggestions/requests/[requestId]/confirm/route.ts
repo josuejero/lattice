@@ -297,7 +297,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string;
         data: {
           writeBackStatus: "SUCCESS",
           externalEventId: created.id ?? null,
-          externalEventHtmlLink: (created as any).htmlLink ?? null,
+          externalEventHtmlLink: created.htmlLink ?? null,
           writeBackError: null,
         },
       });

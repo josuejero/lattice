@@ -13,17 +13,12 @@ export default async function SuggestionsPage() {
   }
 
   const session = await auth()
-  if (!session?.user?.id) {
-    redirect("/signin")
-  }
+  const userId = session?.user?.id ?? redirect("/signin")
 
   const orgId = await getActiveOrgId()
   if (!orgId) {
     redirect("/dashboard")
   }
-
-  // @ts-expect-error depending on session typing
-  const userId: string = (session.user as any).id
 
   const membership = await prisma.membership.findUnique({
     where: { orgId_userId: { orgId, userId } },

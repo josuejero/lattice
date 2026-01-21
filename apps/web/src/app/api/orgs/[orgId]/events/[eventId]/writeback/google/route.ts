@@ -117,15 +117,15 @@ export async function POST(
       sendUpdates: "all",
     });
 
-    await prisma.scheduledEvent.update({
-      where: { id: event.id },
-      data: {
-        writeBackStatus: "SUCCESS",
-        externalEventId: created.id ?? null,
-        externalEventHtmlLink: (created as any).htmlLink ?? null,
-        writeBackError: null,
-      },
-    });
+      await prisma.scheduledEvent.update({
+        where: { id: event.id },
+        data: {
+          writeBackStatus: "SUCCESS",
+          externalEventId: created.id ?? null,
+          externalEventHtmlLink: created.htmlLink ?? null,
+          writeBackError: null,
+        },
+      });
 
     await logAudit({
       orgId,

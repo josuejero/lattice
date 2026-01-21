@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import type { calendar_v3 } from "googleapis";
 import crypto from "crypto";
 import { env } from "@/lib/env";
 import { decryptString } from "@/lib/crypto/secretbox";
@@ -133,5 +134,5 @@ export async function createGoogleCalendarEvent(args: {
     },
   });
 
-  return res.data;
+  return res.data as calendar_v3.Schema$Event;
 }

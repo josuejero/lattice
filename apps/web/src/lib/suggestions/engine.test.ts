@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { generateSuggestions } from "./engine"
+import type { OverrideDTO, WindowDTO } from "./engine"
 
-function makeAttendee(userId: string, timeZone: string, windows: any[], overrides: any[] = []) {
+function makeAttendee(userId: string, timeZone: string, windows: WindowDTO[], overrides: OverrideDTO[] = []) {
   return { userId, timeZone, windows, overrides }
 }
 
