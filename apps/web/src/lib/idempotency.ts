@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime";
+import { PrismaClientKnownRequestError } from "@prisma/client";
 
 import { prisma } from "@lattice/db";
 

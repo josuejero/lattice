@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useId, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { DateTime } from "luxon"
 import { toast } from "sonner"
@@ -58,6 +58,15 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
   const [confirmingRank, setConfirmingRank] = useState<number | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
   const [writeBack, setWriteBack] = useState(false)
+  const baseId = useId()
+  const fieldIds = {
+    title: `${baseId}-title`,
+    timeZone: `${baseId}-timezone`,
+    rangeStart: `${baseId}-range-start`,
+    rangeEnd: `${baseId}-range-end`,
+    dayStart: `${baseId}-day-start`,
+    dayEnd: `${baseId}-day-end`,
+  }
 
   const memberById = useMemo(() => {
     const map = new Map<string, Member>()
@@ -186,20 +195,46 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1">
-            <label className="text-sm font-medium">Title (optional)</label>
-            <Input value={title} onChange={(event) => setTitle(event.target.value)} />
+            <label htmlFor={fieldIds.title} className="text-sm font-medium">
+              Title (optional)
+            </label>
+            <Input
+              id={fieldIds.title}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+            />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Time zone</label>
-            <Input value={timeZone} onChange={(event) => setTimeZone(event.target.value)} />
+            <label htmlFor={fieldIds.timeZone} className="text-sm font-medium">
+              Time zone
+            </label>
+            <Input
+              id={fieldIds.timeZone}
+              value={timeZone}
+              onChange={(event) => setTimeZone(event.target.value)}
+            />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Range start</label>
-            <Input type="date" value={rangeStart} onChange={(event) => setRangeStart(event.target.value)} />
+            <label htmlFor={fieldIds.rangeStart} className="text-sm font-medium">
+              Range start
+            </label>
+            <Input
+              id={fieldIds.rangeStart}
+              type="date"
+              value={rangeStart}
+              onChange={(event) => setRangeStart(event.target.value)}
+            />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Range end</label>
-            <Input type="date" value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} />
+            <label htmlFor={fieldIds.rangeEnd} className="text-sm font-medium">
+              Range end
+            </label>
+            <Input
+              id={fieldIds.rangeEnd}
+              type="date"
+              value={rangeEnd}
+              onChange={(event) => setRangeEnd(event.target.value)}
+            />
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium">Duration</label>
@@ -235,12 +270,26 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Day start</label>
-            <Input type="time" value={dayStart} onChange={(event) => setDayStart(event.target.value)} />
+            <label htmlFor={fieldIds.dayStart} className="text-sm font-medium">
+              Day start
+            </label>
+            <Input
+              id={fieldIds.dayStart}
+              type="time"
+              value={dayStart}
+              onChange={(event) => setDayStart(event.target.value)}
+            />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Day end</label>
-            <Input type="time" value={dayEnd} onChange={(event) => setDayEnd(event.target.value)} />
+            <label htmlFor={fieldIds.dayEnd} className="text-sm font-medium">
+              Day end
+            </label>
+            <Input
+              id={fieldIds.dayEnd}
+              type="time"
+              value={dayEnd}
+              onChange={(event) => setDayEnd(event.target.value)}
+            />
           </div>
         </div>
 

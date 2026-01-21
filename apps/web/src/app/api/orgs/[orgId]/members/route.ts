@@ -128,6 +128,7 @@ export async function GET(
     where: { orgId },
     orderBy: { createdAt: "asc" },
     select: {
+      userId: true,
       id: true,
       role: true,
       createdAt: true,

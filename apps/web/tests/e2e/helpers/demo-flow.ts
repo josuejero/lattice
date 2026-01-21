@@ -89,7 +89,9 @@ export async function createAvailabilityOverride(
 
 export async function goToSuggestions(page: Page) {
   await page.goto(`${baseUrl}/suggestions`);
-  await expect(page.getByRole("heading", { name: "Suggestions" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Suggestions", exact: true }),
+  ).toBeVisible();
 }
 
 export type SuggestionCandidates = {
@@ -112,7 +114,9 @@ export async function createSuggestionRequest(
   const generateButton = form.getByRole("button", { name: "Generate suggestions" });
   await expect(generateButton).toBeEnabled({ timeout: 30000 });
   await generateButton.click();
-  const candidateList = page.locator('section:has-text("Results") ol li');
+  const candidateList = page.locator(
+    'div.space-y-3.rounded-2xl.border:has(button:has-text("Confirm this slot"))',
+  );
   await expect(candidateList.first()).toBeVisible({ timeout: 30000 });
   await expect(candidateList.first()).toContainText("attendees available");
   return { list: candidateList, first: candidateList.first() };

@@ -173,6 +173,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
     return access.response
   }
 
+  return await handleCreateSuggestionRequest(req, access)
+}
+
+async function handleCreateSuggestionRequest(
+  req: Request,
+  access: Awaited<ReturnType<typeof requireLeader>>,
+) {
   const suggestionLimit = await enforceRateLimit(
     "suggestions",
     buildRateLimitKey(
