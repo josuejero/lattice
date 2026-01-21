@@ -27,7 +27,8 @@ export async function signIn(page: Page) {
 export async function createOrg(page: Page, orgName: string) {
   await page.getByPlaceholder("e.g. Delaware DSA").fill(orgName);
   await page.getByRole("button", { name: "Create" }).click();
-  await expect(page.getByText(orgName)).toBeVisible();
+  const orgLabel = page.locator("span.font-medium", { hasText: orgName });
+  await expect(orgLabel).toBeVisible();
 }
 
 export async function signInAndCreateOrg(page: Page, orgName: string) {
@@ -37,7 +38,7 @@ export async function signInAndCreateOrg(page: Page, orgName: string) {
 
 export async function goToAvailability(page: Page) {
   await page.goto(`${baseUrl}/availability`);
-  await expect(page.getByRole("heading", { name: "Availability" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Availability", exact: true })).toBeVisible();
 }
 
 export async function configureWeeklyAvailability(page: Page, options?: { start?: string; end?: string }) {
@@ -71,15 +72,18 @@ export async function createAvailabilityOverride(
   const end = options?.end ?? "13:00";
   const kind = options?.kind ?? "UNAVAILABLE";
   const note = options?.note ?? "Playwright override";
-  const overrides = page.locator('section:has-text("Overrides")');
-  await overrides.getByLabel(/^Date/).fill(overrideDate);
-  await overrides.getByLabel(/^Start/).fill(start);
-  await overrides.getByLabel(/^End/).fill(end);
-  await overrides.getByLabel(/^Kind/).selectOption(kind);
-  await overrides.getByLabel(/^Note/).fill(note);
-  await overrides.getByRole("button", { name: "Create override" }).click();
-  await expect(page.getByText("Override created")).toBeVisible({ timeout: 15000 });
-  await expect(page.getByText(note)).toBeVisible();
+  const overridesSection = page.locator('section:has-text("OverridesAdd specific dates")');
+  await overridesSection.getByLabel(/^Date/).fill(overrideDate);
+  await overridesSection.getByLabel(/^Start/).fill(start);
+  await overridesSection.getByLabel(/^End/).fill(end);
+  const kindCombobox = overridesSection.getByRole("combobox").first();
+  await kindCombobox.click();
+  const optionName = kind === "AVAILABLE" ? "AVAILABLE (add)" : "UNAVAILABLE (subtract)";
+  await page.getByRole("option", { name: optionName }).click();
+  await overridesSection.getByLabel(/^Note/).fill(note);
+  await overridesSection.getByRole("button", { name: "Create override" }).click();
+  const noteLocator = page.getByText(note);
+  await expect(noteLocator).toBeVisible({ timeout: 15000 });
   return note;
 }
 

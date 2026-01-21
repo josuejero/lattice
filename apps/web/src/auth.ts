@@ -2,6 +2,7 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@lattice/db";
 import { env } from "@/lib/env";
@@ -29,17 +30,39 @@ if (env.NODE_ENV !== "production") {
         const email = typeof raw === "string" ? raw.toLowerCase().trim() : "";
         if (!email) return null;
 
-        const user = await prisma.user.upsert({
-          where: { email },
-          update: {},
-          create: { email, name: email.split("@")[0] },
-          select: { id: true, email: true, name: true, image: true },
-        });
+        try {
+          const user = await prisma.user.upsert({
+            where: { email },
+            update: {},
+            create: { email, name: email.split("@")[0] },
+            select: { id: true, email: true, name: true, image: true },
+          });
 
-        return user;
+          return user;
+        } catch (error) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && isUniqueConstraintOnEmail(error)) {
+            const existingUser = await prisma.user.findUnique({
+              where: { email },
+              select: { id: true, email: true, name: true, image: true },
+            });
+            return existingUser ?? null;
+          }
+          throw error;
+        }
       },
     })
   );
+}
+
+function isUniqueConstraintOnEmail(error: Prisma.PrismaClientKnownRequestError) {
+  const target = error.meta?.target;
+  if (error.code !== "P2002") {
+    return false;
+  }
+  if (Array.isArray(target)) {
+    return target.includes("email");
+  }
+  return target === "email";
 }
 
 export const {

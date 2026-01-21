@@ -122,8 +122,8 @@ function respondUnauthorized() {
   )
 }
 
-export async function GET(_: NextRequest, { params }: { params: { orgId: string } }) {
-  const orgId = params.orgId
+export async function GET(_: NextRequest, { params }: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await params
 
   try {
     const access = await requireOrgAccess(orgId, { notFoundOnFail: true })
@@ -155,8 +155,8 @@ export async function GET(_: NextRequest, { params }: { params: { orgId: string 
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { orgId: string } }) {
-  const orgId = params.orgId
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await params
 
   let access
   try {

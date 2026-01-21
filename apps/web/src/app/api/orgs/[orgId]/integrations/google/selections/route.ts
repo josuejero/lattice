@@ -42,8 +42,9 @@ const Body = z.object({ busyCalendarIdHashes: z.array(z.string().min(32)).defaul
  *       "401":
  *         description: Authentication required.
  */
-export async function PUT(req: Request, { params }: { params: { orgId: string } }) {
-  const access = await requireOrgAccess(params.orgId);
+export async function PUT(req: Request, { params }: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await params;
+  const access = await requireOrgAccess(orgId);
   if (!access.ok) return access.response;
 
   const userId = access.membership.userId;
@@ -63,12 +64,12 @@ export async function PUT(req: Request, { params }: { params: { orgId: string } 
   const desired = new Set(body.busyCalendarIdHashes);
 
   await prisma.$transaction(async (tx) => {
-    await tx.calendarSelection.deleteMany({ where: { connectionId: conn.id, orgId: params.orgId } });
+    await tx.calendarSelection.deleteMany({ where: { connectionId: conn.id, orgId } });
     if (desired.size) {
       await tx.calendarSelection.createMany({
         data: [...desired].map((calendarIdHash) => ({
           connectionId: conn.id,
-          orgId: params.orgId,
+          orgId,
           calendarIdHash,
           isBusySource: true,
         })),

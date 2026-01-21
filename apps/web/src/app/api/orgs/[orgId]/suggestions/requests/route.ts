@@ -132,7 +132,7 @@ async function requireLeader(orgId: string) {
  *       "404":
  *         description: Feature disabled.
  */
-export async function GET(_req: Request, { params }: { params: { orgId: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ orgId: string }> }) {
   if (!env.SUGGESTIONS_ENABLED) {
     return NextResponse.json(
       fail(ErrorCodes.NOT_FOUND, "Not found"),
@@ -140,7 +140,8 @@ export async function GET(_req: Request, { params }: { params: { orgId: string }
     )
   }
 
-  const access = await requireLeader(params.orgId)
+  const { orgId } = await params;
+  const access = await requireLeader(orgId)
   if (!access.ok) {
     return access.response
   }
@@ -158,7 +159,7 @@ export async function GET(_req: Request, { params }: { params: { orgId: string }
   return NextResponse.json(ok({ requests }))
 }
 
-export async function POST(req: Request, { params }: { params: { orgId: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ orgId: string }> }) {
   if (!env.SUGGESTIONS_ENABLED) {
     return NextResponse.json(
       fail(ErrorCodes.NOT_FOUND, "Not found"),
@@ -166,7 +167,8 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
     )
   }
 
-  const access = await requireLeader(params.orgId)
+  const { orgId } = await params;
+  const access = await requireLeader(orgId)
   if (!access.ok) {
     return access.response
   }

@@ -28,8 +28,9 @@ export const runtime = "nodejs";
  *       "401":
  *         description: Unauthorized.
  */
-export async function GET(_: Request, { params }: { params: { orgId: string } }) {
-  const access = await requireOrgAccess(params.orgId);
+export async function GET(_: Request, { params }: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await params;
+  const access = await requireOrgAccess(orgId);
   if (!access.ok) return access.response;
 
   const state = crypto.randomBytes(24).toString("base64url");
@@ -38,7 +39,7 @@ export async function GET(_: Request, { params }: { params: { orgId: string } })
   await setOauthCookie({
     state,
     verifier,
-    orgId: params.orgId,
+    orgId,
     userId: access.membership.userId,
     createdAt: Date.now(),
   });

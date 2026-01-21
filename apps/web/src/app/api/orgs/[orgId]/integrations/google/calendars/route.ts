@@ -51,8 +51,9 @@ export const runtime = "nodejs";
  *                           isBusySource:
  *                             type: boolean
  */
-export async function GET(_: Request, { params }: { params: { orgId: string } }) {
-  const access = await requireOrgAccess(params.orgId);
+export async function GET(_: Request, { params }: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await params;
+  const access = await requireOrgAccess(orgId);
   if (!access.ok) return access.response;
 
   const userId = access.membership.userId;
@@ -65,7 +66,7 @@ export async function GET(_: Request, { params }: { params: { orgId: string } })
   }
 
   const selected = await prisma.calendarSelection.findMany({
-    where: { connectionId: conn.id, orgId: params.orgId, isBusySource: true },
+    where: { connectionId: conn.id, orgId, isBusySource: true },
     select: { calendarIdHash: true },
   });
   const set = new Set(selected.map((s) => s.calendarIdHash));
@@ -90,8 +91,9 @@ export async function GET(_: Request, { params }: { params: { orgId: string } })
   );
 }
 
-export async function DELETE(_: Request, { params }: { params: { orgId: string } }) {
-  const access = await requireOrgAccess(params.orgId);
+export async function DELETE(_: Request, { params }: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await params;
+  const access = await requireOrgAccess(orgId);
   if (!access.ok) return access.response;
 
   const userId = access.membership.userId;
@@ -105,13 +107,13 @@ export async function DELETE(_: Request, { params }: { params: { orgId: string }
   }
 
   await prisma.busyBlock.deleteMany({
-    where: { orgId: params.orgId, userId, provider: "GOOGLE" },
+    where: { orgId, userId, provider: "GOOGLE" },
   });
 
   await prisma.calendarConnection.delete({ where: { id: conn.id } });
 
   await logAudit({
-    orgId: params.orgId,
+    orgId,
     actorUserId: userId,
     action: AuditActions.CALENDAR_DISCONNECTED,
     targetType: "CalendarConnection",

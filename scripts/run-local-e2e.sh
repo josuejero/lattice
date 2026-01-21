@@ -55,6 +55,32 @@ wait_for_redis() {
   exit 1
 }
 
+load_prisma_env() {
+  if [ -n "${DATABASE_URL:-}" ]; then
+    return
+  fi
+
+  local env_files=(".env" ".env.local")
+  for env_file in "${env_files[@]}"; do
+    if [ -f "$env_file" ]; then
+      log "Loading environment variables from $env_file"
+      set -o allexport
+      # shellcheck disable=SC1090
+      source "$env_file"
+      set +o allexport
+    fi
+  done
+}
+
+apply_prisma_migrations() {
+  log "Applying Prisma migrations..."
+  load_prisma_env
+  (
+    cd packages/db
+    pnpm prisma migrate deploy
+  )
+}
+
 if [ -z "${CI:-}" ]; then
   log "Starting Postgres and Redis via docker compose..."
   pnpm db:up
@@ -64,6 +90,8 @@ if [ -z "${CI:-}" ]; then
 else
   log "CI detected; skipping local service startup."
 fi
+
+apply_prisma_migrations
 
 log "Running Playwright e2e suite..."
 PLAYWRIGHT_TEST=1 pnpm -C apps/web test:e2e:run

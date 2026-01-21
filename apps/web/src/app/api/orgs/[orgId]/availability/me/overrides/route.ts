@@ -140,8 +140,8 @@ type OverrideFilter = {
   AND?: Array<{ endAt?: { gte: Date }; startAt?: { lt: Date } }>
 }
 
-export async function GET(req: NextRequest, { params }: { params: { orgId: string } }) {
-  const orgId = params.orgId
+export async function GET(req: NextRequest, { params }: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await params
 
   try {
     const access = await requireOrgAccess(orgId, { notFoundOnFail: true })
@@ -181,8 +181,8 @@ export async function GET(req: NextRequest, { params }: { params: { orgId: strin
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { orgId: string } }) {
-  const orgId = params.orgId
+export async function POST(req: NextRequest, { params }: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await params
 
   try {
     const access = await requireOrgAccess(orgId)

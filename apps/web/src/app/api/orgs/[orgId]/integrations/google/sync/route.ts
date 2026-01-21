@@ -82,8 +82,9 @@ const Body = z.object({
  *       "500":
  *         description: Sync attempt failed.
  */
-export async function POST(req: Request, { params }: { params: { orgId: string } }) {
-  const access = await requireOrgAccess(params.orgId);
+export async function POST(req: Request, { params }: { params: Promise<{ orgId: string }> }) {
+  const { orgId } = await params;
+  const access = await requireOrgAccess(orgId);
   if (!access.ok) return access.response;
 
   const userId = access.membership.userId;
@@ -99,10 +100,10 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
   }
   const body = Body.parse(await req.json());
   const idempotencyKeyHeader = req.headers.get("Idempotency-Key");
-  const requestHash = computeIdempotencyHash({ params: { orgId: params.orgId }, body });
+  const requestHash = computeIdempotencyHash({ params: { orgId }, body });
 
   const idempotencyResponse = await getIdempotencyResponse({
-    orgId: params.orgId,
+    orgId,
     endpoint: "integrations.google.sync",
     key: idempotencyKeyHeader,
     requestHash,
@@ -145,7 +146,7 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
   }
 
   const selections = await prisma.calendarSelection.findMany({
-    where: { connectionId: conn.id, orgId: params.orgId, isBusySource: true },
+    where: { connectionId: conn.id, orgId, isBusySource: true },
     select: { calendarIdHash: true },
   });
   const selectedHashes = new Set(selections.map((s) => s.calendarIdHash));
@@ -158,7 +159,7 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
 
   const run = await prisma.calendarSyncRun.create({
     data: {
-      orgId: params.orgId,
+      orgId,
       userId,
       connectionId: conn.id,
       provider: "GOOGLE",
@@ -170,7 +171,7 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
   });
 
   await logAudit({
-    orgId: params.orgId,
+    orgId,
     actorUserId: userId,
     action: AuditActions.CALENDAR_SYNC_STARTED,
     targetType: "CalendarSyncRun",
@@ -209,7 +210,7 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
     await prisma.$transaction(async (tx) => {
       await tx.busyBlock.deleteMany({
         where: {
-          orgId: params.orgId,
+          orgId,
           userId,
           provider: "GOOGLE",
           startUtc: { lt: end.toJSDate() },
@@ -223,14 +224,14 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
             const startISO = m.startUtc.toISOString();
             const endISO = m.endUtc.toISOString();
             return {
-              orgId: params.orgId,
+              orgId,
               userId,
               provider: "GOOGLE",
               sourceHash: MERGED_SOURCE_HASH,
               startUtc: m.startUtc,
               endUtc: m.endUtc,
               blockHash: blockHash({
-                orgId: params.orgId,
+                orgId,
                 userId,
                 sourceHash: MERGED_SOURCE_HASH,
                 startISO,
@@ -249,7 +250,7 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
     const payload = ok({ blocks: merged.length });
 
     await logAudit({
-      orgId: params.orgId,
+      orgId,
       actorUserId: userId,
       action: AuditActions.CALENDAR_SYNC_SUCCESS,
       targetType: "CalendarSyncRun",
@@ -260,7 +261,7 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
     });
     try {
       await saveIdempotencyResponse({
-        orgId: params.orgId,
+        orgId,
         endpoint: "integrations.google.sync",
         key: idempotencyKeyHeader,
         requestHash,
@@ -285,7 +286,7 @@ export async function POST(req: Request, { params }: { params: { orgId: string }
     });
 
     await logAudit({
-      orgId: params.orgId,
+      orgId,
       actorUserId: userId,
       action: AuditActions.CALENDAR_SYNC_FAILURE,
       targetType: "CalendarSyncRun",

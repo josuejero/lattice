@@ -43,7 +43,7 @@ export const runtime = "nodejs"
  *       "404":
  *         description: Request not found or feature disabled.
  */
-export async function GET(_req: Request, { params }: { params: { orgId: string; requestId: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ orgId: string; requestId: string }> }) {
   if (!env.SUGGESTIONS_ENABLED) {
     return NextResponse.json(
       fail(ErrorCodes.NOT_FOUND, "Not found"),
@@ -51,18 +51,19 @@ export async function GET(_req: Request, { params }: { params: { orgId: string; 
     )
   }
 
-  const access = await requireOrgAccess(params.orgId, { minRole: "LEADER" })
+  const { orgId, requestId } = await params;
+  const access = await requireOrgAccess(orgId, { minRole: "LEADER" })
   if (!access.ok) return access.response
 
   const request = await prisma.suggestionRequest.findUnique({
-    where: { id: params.requestId },
+    where: { id: requestId },
     include: {
       attendees: true,
       candidates: { orderBy: { rank: "asc" } },
     },
   })
 
-  if (!request || request.orgId !== params.orgId) {
+  if (!request || request.orgId !== orgId) {
     return NextResponse.json(
       fail(ErrorCodes.NOT_FOUND, "Not found"),
       { status: 404 }
