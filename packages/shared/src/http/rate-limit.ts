@@ -39,7 +39,7 @@ const IP_HEADER_PRIORITY = [
 
 function parseForwardedHeader(value: string) {
   const match = value.match(/for=("[^"]+"|[^;,\s]+)/i);
-  if (!match) return "";
+  if (!match || !match[1]) return "";
   return match[1].replace(/^"|"$/g, "");
 }
 
@@ -47,7 +47,9 @@ export function getRequestIp(req: Request) {
   for (const header of IP_HEADER_PRIORITY) {
     const value = req.headers.get(header);
     if (!value) continue;
-    const ip = value.split(",")[0].trim();
+    const rawIp = value.split(",")[0];
+    if (!rawIp) continue;
+    const ip = rawIp.trim();
     if (ip) return ip;
   }
 
