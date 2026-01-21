@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs",
     "lint": "eslint .",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
     "test": "echo \"(no tests yet)\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
