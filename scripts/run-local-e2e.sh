@@ -55,6 +55,12 @@ wait_for_redis() {
   exit 1
 }
 
+build_workspace_packages() {
+  log "Building workspace packages..."
+  pnpm --filter @lattice/db build
+  pnpm --filter @lattice/shared build
+}
+
 load_prisma_env() {
   if [ -n "${DATABASE_URL:-}" ]; then
     return
@@ -92,6 +98,8 @@ else
 fi
 
 apply_prisma_migrations
+
+build_workspace_packages
 
 log "Running Playwright e2e suite..."
 log "Generating Prisma client in packages/db..."
