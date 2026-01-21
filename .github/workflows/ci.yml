@@ -110,8 +110,15 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm -C apps/web exec playwright install --with-deps
 
+      - name: Show workspace info
+        run: |
+          pwd
+          ls -la
+          test -d packages/db && ls -la packages/db
+          pnpm -v
+
       - name: Generate Prisma client
-        run: pnpm -C packages/db prisma generate
+        run: pnpm --filter @lattice/db run prisma:generate
 
       - name: E2E
         run: pnpm -C apps/web test:e2e

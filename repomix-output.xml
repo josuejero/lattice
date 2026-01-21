@@ -2992,19 +2992,6 @@ declare module "next-auth" {
 export {};
 </file>
 
-<file path="apps/web/src/middleware.ts">
-export { auth as middleware } from "@/auth";
-
-export const config = {
-  matcher: [
-    "/dashboard/:path*",
-    "/orgs/:path*",
-    "/api/orgs/:path*",
-    "/api/org-scoped/:path*",
-  ],
-};
-</file>
-
 <file path="apps/web/tests/e2e/auth-smoke.spec.ts">
 import { test, expect } from "@playwright/test";
 
@@ -3247,32 +3234,6 @@ const eslintConfig = defineConfig([
 ]);
 
 export default eslintConfig;
-</file>
-
-<file path="apps/web/next.config.ts">
-import path from "path";
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  turbopack: {},
-  transpilePackages: ["@lattice/db", "@lattice/shared"],
-  webpack(config) {
-    const alias = config.resolve?.alias ?? {};
-    return {
-      ...config,
-      resolve: {
-        ...config.resolve,
-        alias: {
-          ...alias,
-          "@lattice/db": path.resolve(__dirname, "../../packages/db/dist/index.js"),
-          "@lattice/shared": path.resolve(__dirname, "../../packages/shared/dist/index.js"),
-        },
-      },
-    };
-  },
-};
-
-export default nextConfig;
 </file>
 
 <file path="apps/web/postcss.config.mjs">
@@ -4365,23 +4326,6 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-</file>
-
-<file path="packages/db/src/index.ts">
-import { PrismaClient } from "@prisma/client";
-
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"],
-  });
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 </file>
 
 <file path="packages/db/eslint.config.cjs">
@@ -7543,139 +7487,60 @@ export async function requireOrgAccess(
 }
 </file>
 
-<file path="apps/web/src/lib/idempotency.ts">
-import { createHash } from "crypto";
-import { PrismaClientKnownRequestError } from "@prisma/client";
+<file path="apps/web/src/middleware.ts">
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-import { prisma } from "@lattice/db";
+export async function middleware(req: NextRequest) {
+  if (process.env.PLAYWRIGHT_TEST === "1") return NextResponse.next();
 
-const IDEMPOTENCY_KEY_TTL_MS = 1000 * 60 * 15; // 15 minutes
+  const { pathname } = req.nextUrl;
 
-type IdempotencyParams = {
-  orgId: string;
-  endpoint: string;
-  key?: string | null;
-  requestHash: string;
+  if (
+    pathname.startsWith("/signin") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico"
+  ) {
+    return NextResponse.next();
+  }
+
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  if (!token) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/signin";
+    url.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
+};
+</file>
+
+<file path="apps/web/next.config.ts">
+import path from "path";
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  turbopack: {},
+  transpilePackages: ["@lattice/db", "@lattice/shared"],
+  webpack: (config) => {
+    config.resolve = config.resolve ?? {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@lattice/shared": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
+      "@lattice/db": path.resolve(__dirname, "../../packages/db/src/index.ts"),
+    };
+    return config;
+  },
 };
 
-type IdempotencyResponse =
-  | { type: "none" }
-  | { type: "conflict" }
-  | { type: "response"; response: { status: number; body: unknown } }
-  | { type: "incomplete" };
-
-export async function getIdempotencyResponse(params: IdempotencyParams): Promise<IdempotencyResponse> {
-  const normalizedKey = normalizeKey(params.key);
-  if (!normalizedKey) {
-    return { type: "none" };
-  }
-
-  const entry = await prisma.idempotencyKey.findUnique({
-    where: {
-      orgId_endpoint_key: {
-        orgId: params.orgId,
-        endpoint: params.endpoint,
-        key: normalizedKey,
-      },
-    },
-  });
-
-  if (!entry) {
-    return { type: "none" };
-  }
-
-  if (entry.requestHash !== params.requestHash) {
-    return { type: "conflict" };
-  }
-
-  if (entry.responseStatus != null) {
-    return {
-      type: "response",
-      response: {
-        status: entry.responseStatus,
-        body: entry.responseBody,
-      },
-    };
-  }
-
-  return { type: "incomplete" };
-}
-
-export async function saveIdempotencyResponse({
-  orgId,
-  endpoint,
-  key,
-  requestHash,
-  responseStatus,
-  responseBody,
-}: IdempotencyParams & { responseStatus: number; responseBody: unknown }) {
-  const normalizedKey = normalizeKey(key);
-  if (!normalizedKey) {
-    return;
-  }
-
-  try {
-    await prisma.idempotencyKey.create({
-      data: {
-        orgId,
-        endpoint,
-        key: normalizedKey,
-        requestHash,
-        responseStatus,
-        responseBody,
-        expiresAt: new Date(Date.now() + IDEMPOTENCY_KEY_TTL_MS),
-      },
-    });
-  } catch (error: unknown) {
-    if (error instanceof PrismaClientKnownRequestError && error.code === "P2002") {
-      // Another process already stored the response.
-      return;
-    }
-    throw error;
-  }
-}
-
-export function computeIdempotencyHash(payload: unknown) {
-  const hasher = createHash("sha256");
-  hasher.update(stableStringify(payload));
-  return hasher.digest("hex");
-}
-
-function normalizeKey(key?: string | null) {
-  const value = key?.trim();
-  return value ? value : null;
-}
-
-function stableStringify(value: unknown): string {
-  if (value === null) {
-    return "null";
-  }
-  if (typeof value === "undefined") {
-    return "undefined";
-  }
-  if (typeof value === "string") {
-    return JSON.stringify(value);
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return value.toString();
-  }
-  if (value instanceof Date) {
-    return JSON.stringify(value.toISOString());
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
-  }
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, entryValue]) => typeof entryValue !== "undefined")
-      .sort(([a], [b]) => a.localeCompare(b));
-    const serialized = entries
-      .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableStringify(entryValue)}`)
-      .join(",");
-    return `{${serialized}}`;
-  }
-  return JSON.stringify(value);
-}
+export default nextConfig;
 </file>
 
 <file path="apps/web/playwright.config.ts">
@@ -8135,6 +8000,25 @@ model ScheduledEventAttendee {
 }
 </file>
 
+<file path="packages/db/src/index.ts">
+import { PrismaClient, Prisma } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log:
+      process.env.NODE_ENV === "development"
+        ? ["query", "error", "warn"]
+        : ["error"],
+  });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+export { Prisma };
+</file>
+
 <file path="packages/shared/src/http/rate-limit.ts">
 import { fail } from "./envelope";
 import { ErrorCodes } from "./error-codes";
@@ -8393,106 +8277,6 @@ export * from "./audit/log";
   },
   "include": ["src/**/*.ts", "../../types/**/*.d.ts"]
 }
-</file>
-
-<file path="scripts/run-local-e2e.sh">
-#!/usr/bin/env bash
-set -euo pipefail
-
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT_DIR"
-
-log() {
-  echo "[local-e2e] $*"
-}
-
-if ! command -v pnpm >/dev/null 2>&1; then
-  log "pnpm is required to run the e2e helper."
-  exit 1
-fi
-
-if ! command -v docker >/dev/null 2>&1; then
-  log "Docker is required to start the local services."
-  exit 1
-fi
-
-started_services=0
-
-cleanup() {
-  if [ "$started_services" -eq 1 ]; then
-    log "Stopping local services..."
-    pnpm db:down
-  fi
-}
-
-trap cleanup EXIT
-
-wait_for_postgres() {
-  log "Waiting for Postgres to be ready..."
-  for attempt in $(seq 1 30); do
-    if docker compose exec -T postgres pg_isready -U lattice >/dev/null 2>&1; then
-      log "Postgres is ready."
-      return 0
-    fi
-    sleep 1
-  done
-  log "Postgres did not become ready in time."
-  exit 1
-}
-
-wait_for_redis() {
-  log "Waiting for Redis to be ready..."
-  for attempt in $(seq 1 30); do
-    if docker compose exec -T redis redis-cli ping >/dev/null 2>&1; then
-      log "Redis is ready."
-      return 0
-    fi
-    sleep 1
-  done
-  log "Redis did not become ready in time."
-  exit 1
-}
-
-load_prisma_env() {
-  if [ -n "${DATABASE_URL:-}" ]; then
-    return
-  fi
-
-  local env_files=(".env" ".env.local")
-  for env_file in "${env_files[@]}"; do
-    if [ -f "$env_file" ]; then
-      log "Loading environment variables from $env_file"
-      set -o allexport
-      # shellcheck disable=SC1090
-      source "$env_file"
-      set +o allexport
-    fi
-  done
-}
-
-apply_prisma_migrations() {
-  log "Applying Prisma migrations..."
-  load_prisma_env
-  (
-    cd packages/db
-    pnpm prisma migrate deploy
-  )
-}
-
-if [ -z "${CI:-}" ]; then
-  log "Starting Postgres and Redis via docker compose..."
-  pnpm db:up
-  started_services=1
-  wait_for_postgres
-  wait_for_redis
-else
-  log "CI detected; skipping local service startup."
-fi
-
-apply_prisma_migrations
-
-log "Running Playwright e2e suite..."
-PLAYWRIGHT_TEST=1 pnpm -C apps/web test:e2e:run
 </file>
 
 <file path="package.json">
@@ -10874,97 +10658,137 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
 }
 </file>
 
-<file path="apps/web/src/auth.ts">
-import NextAuth, { type NextAuthOptions } from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import Google from "next-auth/providers/google";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { Prisma } from "@prisma/client";
+<file path="apps/web/src/lib/idempotency.ts">
+import { createHash } from "crypto";
+import { Prisma, prisma } from "@lattice/db";
 
-import { prisma } from "@lattice/db";
-import { env } from "@/lib/env";
+const IDEMPOTENCY_KEY_TTL_MS = 1000 * 60 * 15; // 15 minutes
 
-const providers: NextAuthOptions["providers"] = [];
+type IdempotencyParams = {
+  orgId: string;
+  endpoint: string;
+  key?: string | null;
+  requestHash: string;
+};
 
-if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) {
-  providers.push(
-    Google({
-      clientId: env.AUTH_GOOGLE_ID,
-      clientSecret: env.AUTH_GOOGLE_SECRET,
-    })
-  );
-}
+type IdempotencyResponse =
+  | { type: "none" }
+  | { type: "conflict" }
+  | { type: "response"; response: { status: number; body: unknown } }
+  | { type: "incomplete" };
 
-if (env.NODE_ENV !== "production") {
-  providers.push(
-    Credentials({
-      name: "Dev Sign-in",
-      credentials: {
-        email: { label: "Email", type: "email", placeholder: "dev@example.com" },
-      },
-      async authorize(credentials) {
-        const raw = credentials?.email;
-        const email = typeof raw === "string" ? raw.toLowerCase().trim() : "";
-        if (!email) return null;
-
-        try {
-          const user = await prisma.user.upsert({
-            where: { email },
-            update: {},
-            create: { email, name: email.split("@")[0] },
-            select: { id: true, email: true, name: true, image: true },
-          });
-
-          return user;
-        } catch (error) {
-          if (error instanceof Prisma.PrismaClientKnownRequestError && isUniqueConstraintOnEmail(error)) {
-            const existingUser = await prisma.user.findUnique({
-              where: { email },
-              select: { id: true, email: true, name: true, image: true },
-            });
-            return existingUser ?? null;
-          }
-          throw error;
-        }
-      },
-    })
-  );
-}
-
-function isUniqueConstraintOnEmail(error: Prisma.PrismaClientKnownRequestError) {
-  const target = error.meta?.target;
-  if (error.code !== "P2002") {
-    return false;
+export async function getIdempotencyResponse(params: IdempotencyParams): Promise<IdempotencyResponse> {
+  const normalizedKey = normalizeKey(params.key);
+  if (!normalizedKey) {
+    return { type: "none" };
   }
-  if (Array.isArray(target)) {
-    return target.includes("email");
+
+  const entry = await prisma.idempotencyKey.findUnique({
+    where: {
+      orgId_endpoint_key: {
+        orgId: params.orgId,
+        endpoint: params.endpoint,
+        key: normalizedKey,
+      },
+    },
+  });
+
+  if (!entry) {
+    return { type: "none" };
   }
-  return target === "email";
+
+  if (entry.requestHash !== params.requestHash) {
+    return { type: "conflict" };
+  }
+
+  if (entry.responseStatus != null) {
+    return {
+      type: "response",
+      response: {
+        status: entry.responseStatus,
+        body: entry.responseBody,
+      },
+    };
+  }
+
+  return { type: "incomplete" };
 }
 
-export const {
-  handlers: { GET, POST },
-  auth,
-  signIn,
-  signOut,
-} = NextAuth({
-  adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
-  providers,
-  pages: { signIn: "/signin" },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user?.id) token.sub = user.id;
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
-      }
-      return session;
-    },
-  },
-});
+export async function saveIdempotencyResponse({
+  orgId,
+  endpoint,
+  key,
+  requestHash,
+  responseStatus,
+  responseBody,
+}: IdempotencyParams & { responseStatus: number; responseBody: unknown }) {
+  const normalizedKey = normalizeKey(key);
+  if (!normalizedKey) {
+    return;
+  }
+
+  try {
+    await prisma.idempotencyKey.create({
+      data: {
+        orgId,
+        endpoint,
+        key: normalizedKey,
+        requestHash,
+        responseStatus,
+        responseBody,
+        expiresAt: new Date(Date.now() + IDEMPOTENCY_KEY_TTL_MS),
+      },
+    });
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      // Another process already stored the response.
+      return;
+    }
+    throw error;
+  }
+}
+
+export function computeIdempotencyHash(payload: unknown) {
+  const hasher = createHash("sha256");
+  hasher.update(stableStringify(payload));
+  return hasher.digest("hex");
+}
+
+function normalizeKey(key?: string | null) {
+  const value = key?.trim();
+  return value ? value : null;
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null) {
+    return "null";
+  }
+  if (typeof value === "undefined") {
+    return "undefined";
+  }
+  if (typeof value === "string") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value.toString();
+  }
+  if (value instanceof Date) {
+    return JSON.stringify(value.toISOString());
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => typeof entryValue !== "undefined")
+      .sort(([a], [b]) => a.localeCompare(b));
+    const serialized = entries
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableStringify(entryValue)}`)
+      .join(",");
+    return `{${serialized}}`;
+  }
+  return JSON.stringify(value);
+}
 </file>
 
 <file path="apps/web/test-results/.last-run.json">
@@ -11724,6 +11548,199 @@ function parseSuggestionsCacheEntry(value: string): SuggestionsCacheEntry | null
   }
   return null
 }
+</file>
+
+<file path="apps/web/src/auth.ts">
+import NextAuth, { type NextAuthOptions } from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { Prisma, prisma } from "@lattice/db";
+import { env } from "@/lib/env";
+
+const providers: NextAuthOptions["providers"] = [];
+
+if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) {
+  providers.push(
+    Google({
+      clientId: env.AUTH_GOOGLE_ID,
+      clientSecret: env.AUTH_GOOGLE_SECRET,
+    })
+  );
+}
+
+if (env.NODE_ENV !== "production") {
+  providers.push(
+    Credentials({
+      name: "Dev Sign-in",
+      credentials: {
+        email: { label: "Email", type: "email", placeholder: "dev@example.com" },
+      },
+      async authorize(credentials) {
+        const raw = credentials?.email;
+        const email = typeof raw === "string" ? raw.toLowerCase().trim() : "";
+        if (!email) return null;
+
+        try {
+          const user = await prisma.user.upsert({
+            where: { email },
+            update: {},
+            create: { email, name: email.split("@")[0] },
+            select: { id: true, email: true, name: true, image: true },
+          });
+
+          return user;
+        } catch (error) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && isUniqueConstraintOnEmail(error)) {
+            const existingUser = await prisma.user.findUnique({
+              where: { email },
+              select: { id: true, email: true, name: true, image: true },
+            });
+            return existingUser ?? null;
+          }
+          throw error;
+        }
+      },
+    })
+  );
+}
+
+function isUniqueConstraintOnEmail(error: Prisma.PrismaClientKnownRequestError) {
+  const target = error.meta?.target;
+  if (error.code !== "P2002") {
+    return false;
+  }
+  if (Array.isArray(target)) {
+    return target.includes("email");
+  }
+  return target === "email";
+}
+
+export const {
+  handlers: { GET, POST },
+  auth,
+  signIn,
+  signOut,
+} = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: "jwt" },
+  providers,
+  pages: { signIn: "/signin" },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user?.id) token.sub = user.id;
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
+      }
+      return session;
+    },
+  },
+});
+</file>
+
+<file path="scripts/run-local-e2e.sh">
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
+
+log() {
+  echo "[local-e2e] $*"
+}
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  log "pnpm is required to run the e2e helper."
+  exit 1
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  log "Docker is required to start the local services."
+  exit 1
+fi
+
+started_services=0
+
+cleanup() {
+  if [ "$started_services" -eq 1 ]; then
+    log "Stopping local services..."
+    pnpm db:down
+  fi
+}
+
+trap cleanup EXIT
+
+wait_for_postgres() {
+  log "Waiting for Postgres to be ready..."
+  for attempt in $(seq 1 30); do
+    if docker compose exec -T postgres pg_isready -U lattice >/dev/null 2>&1; then
+      log "Postgres is ready."
+      return 0
+    fi
+    sleep 1
+  done
+  log "Postgres did not become ready in time."
+  exit 1
+}
+
+wait_for_redis() {
+  log "Waiting for Redis to be ready..."
+  for attempt in $(seq 1 30); do
+    if docker compose exec -T redis redis-cli ping >/dev/null 2>&1; then
+      log "Redis is ready."
+      return 0
+    fi
+    sleep 1
+  done
+  log "Redis did not become ready in time."
+  exit 1
+}
+
+load_prisma_env() {
+  if [ -n "${DATABASE_URL:-}" ]; then
+    return
+  fi
+
+  local env_files=(".env" ".env.local")
+  for env_file in "${env_files[@]}"; do
+    if [ -f "$env_file" ]; then
+      log "Loading environment variables from $env_file"
+      set -o allexport
+      # shellcheck disable=SC1090
+      source "$env_file"
+      set +o allexport
+    fi
+  done
+}
+
+apply_prisma_migrations() {
+  log "Applying Prisma migrations..."
+  load_prisma_env
+  (
+    cd packages/db
+    pnpm prisma migrate deploy
+  )
+}
+
+if [ -z "${CI:-}" ]; then
+  log "Starting Postgres and Redis via docker compose..."
+  pnpm db:up
+  started_services=1
+  wait_for_postgres
+  wait_for_redis
+else
+  log "CI detected; skipping local service startup."
+fi
+
+apply_prisma_migrations
+
+log "Running Playwright e2e suite..."
+log "Generating Prisma client in packages/db..."
+pnpm db:generate
+PLAYWRIGHT_TEST=1 pnpm -C apps/web test:e2e:run
 </file>
 
 </files>
