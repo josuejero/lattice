@@ -41,9 +41,9 @@ function respondUnauthorized() {
  */
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { orgId: string; overrideId: string } }
+  { params }: { params: Promise<{ orgId: string; overrideId: string }> }
 ) {
-  const { orgId, overrideId } = params
+  const { orgId, overrideId } = await params
 
   try {
     const access = await requireOrgAccess(orgId)

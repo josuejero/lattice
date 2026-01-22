@@ -79,7 +79,12 @@ export async function saveIdempotencyResponse({
       },
     });
   } catch (error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2002"
+    ) {
       // Another process already stored the response.
       return;
     }

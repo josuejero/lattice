@@ -26,9 +26,10 @@ function clampStartMinute(base: number, duration: number): number {
   return Math.min(Math.max(base, EARLIEST_MINUTE), maxStart);
 }
 
-function shiftMinutes(userId: string, weekKey: string, pattern: { dayOffset: number }): number {
+function shiftMinutes(userId: string | null, weekKey: string, pattern: { dayOffset: number }): number {
+  const normalizedUserId = userId ?? ""
   const digest = createHash("sha256")
-    .update(`${userId}:${weekKey}:${pattern.dayOffset}`)
+    .update(`${normalizedUserId}:${weekKey}:${pattern.dayOffset}`)
     .digest("hex");
   const raw = parseInt(digest.slice(0, 4), 16);
   const range = MAX_SHIFT_MINUTES * 2 + 1;
@@ -40,10 +41,14 @@ function mondayOf(date: DateTime) {
 }
 
 export function generateDemoBusyBlocks(params: {
-  userId: string;
+  userId: string | null;
   rangeStart: Date;
   rangeEnd: Date;
 }): DemoBusyBlock[] {
+  const userId = params.userId ?? "";
+  if (!userId) {
+    return [];
+  }
   const rangeStart = DateTime.fromJSDate(params.rangeStart, { zone: "utc" });
   const rangeEnd = DateTime.fromJSDate(params.rangeEnd, { zone: "utc" });
   const baseWeek = mondayOf(DateTime.utc());
@@ -53,7 +58,10 @@ export function generateDemoBusyBlocks(params: {
     const weekStart = baseWeek.plus({ weeks: weekOffset });
     for (const pattern of BASE_PATTERNS) {
       const weekKey = weekStart.toISODate();
-      const shift = shiftMinutes(params.userId, weekKey, pattern);
+      // userId is guaranteed to be a string after the early return above
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      // @ts-ignore
+      const shift = shiftMinutes(userId, weekKey, pattern);
       const adjustedStart = clampStartMinute(pattern.baseStartMinute + shift, pattern.durationMinutes);
       const dayStart = weekStart.plus({ days: pattern.dayOffset, minutes: adjustedStart });
       const dayEnd = dayStart.plus({ minutes: pattern.durationMinutes });
@@ -61,7 +69,7 @@ export function generateDemoBusyBlocks(params: {
       if (dayEnd <= rangeStart || dayStart >= rangeEnd) continue;
 
       blocks.push({
-        userId: params.userId,
+        userId,
         startUtc: dayStart.toJSDate(),
         endUtc: dayEnd.toJSDate(),
         createdAt: dayStart.toJSDate(),

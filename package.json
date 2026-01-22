@@ -16,13 +16,14 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f",
-    "db:generate": "pnpm -C packages/db prisma:generate",
-    "db:migrate": "pnpm -C packages/db prisma:migrate",
-    "db:seed": "pnpm -C packages/db prisma db seed",
-    "db:reset": "pnpm -C packages/db prisma migrate reset --force",
-    "db:studio": "pnpm -C packages/db prisma:studio"
+    "db:generate": "pnpm --filter ./packages/db run prisma:generate",
+    "db:migrate": "pnpm --filter ./packages/db run prisma:migrate",
+    "db:seed": "pnpm --filter ./packages/db exec prisma db seed",
+    "db:reset": "pnpm --filter ./packages/db exec prisma migrate reset --force",
+    "db:studio": "pnpm --filter ./packages/db run prisma:studio"
   },
   "devDependencies": {
+    "@types/luxon": "3.7.1",
     "@typescript-eslint/parser": "8.52.0",
     "node-addon-api": "8.5.0",
     "prettier": "3.7.4",

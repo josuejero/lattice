@@ -3,8 +3,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@lattice/db"
 import { fail, ok, ErrorCodes } from "@lattice/shared"
 import { requireOrgAccess } from "@/lib/guards"
+import type { AvailabilityOverride, Prisma } from "@prisma/client"
 
 export const runtime = "nodejs"
+
+type AvailabilityTemplateWithWindows = Prisma.AvailabilityTemplateGetPayload<{
+  include: { windows: true }
+}>
 
 /**
  * @openapi
@@ -70,20 +75,21 @@ export const runtime = "nodejs"
  */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { orgId: string; userId: string } }
+  { params }: { params: Promise<{ orgId: string; userId: string }> }
 ) {
-  const { orgId, userId } = params
+  const { orgId, userId } = await params
 
   try {
     const access = await requireOrgAccess(orgId, { minRole: "LEADER", notFoundOnFail: true })
     if (!access.ok) return access.response
 
-    const template = await prisma.availabilityTemplate.findUnique({
+    const template: AvailabilityTemplateWithWindows | null =
+      await prisma.availabilityTemplate.findUnique({
       where: { orgId_userId: { orgId, userId } },
       include: { windows: true },
     })
 
-    const overrides = await prisma.availabilityOverride.findMany({
+    const overrides: AvailabilityOverride[] = await prisma.availabilityOverride.findMany({
       where: { orgId, userId },
       orderBy: { startAt: "asc" },
     })

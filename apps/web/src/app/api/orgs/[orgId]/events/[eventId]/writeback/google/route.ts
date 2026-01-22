@@ -5,6 +5,23 @@ import { env } from "@/lib/env";
 import { fail, ok, ErrorCodes, logAudit, AuditActions } from "@lattice/shared";
 import { requireOrgAccess } from "@/lib/guards";
 import { createGoogleCalendarEvent } from "@/lib/google/calendar";
+import type { Prisma } from "@prisma/client";
+
+type ScheduledEventWithAttendees = Prisma.ScheduledEventGetPayload<{
+  include: {
+    attendees: {
+      include: {
+        user: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+          };
+        };
+      };
+    };
+  };
+}>;
 
 export const runtime = "nodejs";
 
@@ -66,7 +83,8 @@ export async function POST(
   if (!access.ok) return access.response;
   const userId = access.membership.userId;
 
-  const event = await prisma.scheduledEvent.findFirst({
+  const event: ScheduledEventWithAttendees | null =
+    await prisma.scheduledEvent.findFirst({
     where: { id: eventId, orgId },
     include: { attendees: { include: { user: { select: { id: true, name: true, email: true } } } } },
   });

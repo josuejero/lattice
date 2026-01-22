@@ -65,16 +65,16 @@ function DropdownMenuItem({
   inset,
   variant = "default",
   asChild = false,
+  children,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Item> & {
   inset?: boolean
   variant?: "default" | "destructive"
   asChild?: boolean
 }) {
-  const Comp = asChild ? Slot : DropdownMenuPrimitive.Item
-
   return (
-    <Comp
+    <DropdownMenuPrimitive.Item
+      asChild={asChild}
       data-slot="dropdown-menu-item"
       data-inset={inset}
       data-variant={variant}
@@ -90,7 +90,7 @@ function DropdownMenuItem({
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}
-    </Comp>
+    </DropdownMenuPrimitive.Item>
   )
 }
 

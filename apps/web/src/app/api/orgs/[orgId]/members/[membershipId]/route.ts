@@ -126,11 +126,12 @@ export async function PATCH(
     );
   }
 
+  const target = await prisma.membership.findUnique({
+    where: { id: membershipId },
+    select: { role: true, userId: true },
+  });
+
   if (parsed.data.role !== "OWNER") {
-    const target = await prisma.membership.findUnique({
-      where: { id: membershipId },
-      select: { role: true, userId: true },
-    });
 
     if (target?.role === "OWNER") {
       const owners = await prisma.membership.count({

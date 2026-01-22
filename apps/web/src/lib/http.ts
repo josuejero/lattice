@@ -1,4 +1,6 @@
-import type { ErrorCode } from "@lattice/shared";
+import { ErrorCodes } from "@lattice/shared";
+
+type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 
 export class ApiError extends Error {
   public readonly status: number;

@@ -4,6 +4,9 @@ import { prisma } from "@lattice/db";
 import { env } from "@/lib/env";
 import { getActiveOrgId } from "@/lib/org-context";
 import { requireMembership } from "@/lib/guards";
+import type { ScheduledEvent } from "@prisma/client";
+
+type UpcomingEvent = Pick<ScheduledEvent, "id" | "title" | "startUtc" | "endUtc">;
 
 export default async function EventsPage() {
   if (!env.EVENTS_ENABLED) return <div>Events are disabled.</div>;
@@ -15,7 +18,7 @@ export default async function EventsPage() {
   if (!access.ok) return <div>Sign in required.</div>;
 
   const now = new Date();
-  const events = await prisma.scheduledEvent.findMany({
+  const events: UpcomingEvent[] = await prisma.scheduledEvent.findMany({
     where: { orgId, endUtc: { gte: now } },
     orderBy: { startUtc: "asc" },
     take: 50,

@@ -5,6 +5,23 @@ import { env } from "@/lib/env";
 import { getActiveOrgId } from "@/lib/org-context";
 import { requireMembership } from "@/lib/guards";
 import { WriteBackButton } from "@/features/events/WriteBackButton";
+import type { Prisma } from "@prisma/client";
+
+type ScheduledEventWithAttendees = Prisma.ScheduledEventGetPayload<{
+  include: {
+    attendees: {
+      include: {
+        user: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+          };
+        };
+      };
+    };
+  };
+}>;
 
 export default async function EventDetailPage(props: { params: Promise<{ eventId: string }> }) {
   if (!env.EVENTS_ENABLED) return <div>Events are disabled.</div>;
@@ -16,7 +33,7 @@ export default async function EventDetailPage(props: { params: Promise<{ eventId
   const access = await requireMembership(orgId);
   if (!access.ok) return <div>Sign in required.</div>;
 
-  const event = await prisma.scheduledEvent.findFirst({
+  const event: ScheduledEventWithAttendees | null = await prisma.scheduledEvent.findFirst({
     where: { id: eventId, orgId },
     include: { attendees: { include: { user: { select: { id: true, name: true, email: true } } } } },
   });

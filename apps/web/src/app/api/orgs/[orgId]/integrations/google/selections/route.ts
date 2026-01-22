@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@lattice/db";
 import { fail, ok, ErrorCodes } from "@lattice/shared";
 import { requireOrgAccess } from "@/lib/guards";
+import type { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -63,7 +64,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ orgId: s
 
   const desired = new Set(body.busyCalendarIdHashes);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.calendarSelection.deleteMany({ where: { connectionId: conn.id, orgId } });
     if (desired.size) {
       await tx.calendarSelection.createMany({

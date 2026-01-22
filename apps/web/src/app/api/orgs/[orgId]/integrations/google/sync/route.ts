@@ -27,6 +27,7 @@ import {
   saveIdempotencyResponse,
   computeIdempotencyHash,
 } from "@/lib/idempotency";
+import type { CalendarSelection, Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -134,6 +135,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
   const start = DateTime.fromISO(body.rangeStart ?? DateTime.utc().toISODate()!, { zone: tz }).startOf("day").toUTC();
   const end = DateTime.fromISO(body.rangeEnd ?? DateTime.utc().plus({ days: 30 }).toISODate()!, { zone: tz }).endOf("day").toUTC();
 
+  const startISO = start.toISO();
+  const endISO = end.toISO();
+  if (!startISO || !endISO) throw new Error("invalid_range");
+
   const conn = await prisma.calendarConnection.findUnique({
     where: { userId_provider: { userId, provider: "GOOGLE" } },
     select: { id: true, encryptedRefreshToken: true, status: true },
@@ -145,7 +150,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
     );
   }
 
-  const selections = await prisma.calendarSelection.findMany({
+  const selections: Pick<CalendarSelection, "calendarIdHash">[] =
+    await prisma.calendarSelection.findMany({
     where: { connectionId: conn.id, orgId, isBusySource: true },
     select: { calendarIdHash: true },
   });
@@ -177,8 +183,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
     targetType: "CalendarSyncRun",
     targetId: run.id,
     metadata: {
-      rangeStart: start.toISOString(),
-      rangeEnd: end.toISOString(),
+      rangeStart: startISO,
+      rangeEnd: endISO,
       timeZone: tz,
     },
   });
@@ -191,8 +197,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
     const fb = await freeBusy({
       refreshTokenCiphertext: conn.encryptedRefreshToken,
       calendarIds: busyIds,
-      timeMinISO: start.toISO(),
-      timeMaxISO: end.toISO(),
+      timeMinISO: startISO,
+      timeMaxISO: endISO,
       timeZone: tz,
     });
 
@@ -207,7 +213,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
 
     const merged = mergeUtcIntervals(intervals);
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.busyBlock.deleteMany({
         where: {
           orgId,

@@ -24,11 +24,11 @@
     "@types/node": "^20",
     "eslint": "^9.0.0",
     "prisma": "^5.0.0",
-    "ts-node": "^10.9.1",
+    "tsx": "^4.8.1",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
   "prisma": {
-    "seed": "node --loader ts-node/esm ./prisma/seed.ts"
+    "seed": "tsx ./prisma/seed.ts"
   }
 }

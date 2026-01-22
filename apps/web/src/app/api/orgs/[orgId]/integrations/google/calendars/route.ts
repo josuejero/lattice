@@ -3,6 +3,7 @@ import { prisma } from "@lattice/db";
 import { ok, logAudit, AuditActions } from "@lattice/shared";
 import { requireOrgAccess } from "@/lib/guards";
 import { listCalendars, calendarIdHash } from "@/lib/google/calendar";
+import type { CalendarSelection } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -65,7 +66,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ orgId: str
     return NextResponse.json(ok({ connected: false, calendars: [] }));
   }
 
-  const selected = await prisma.calendarSelection.findMany({
+  const selected: Pick<CalendarSelection, "calendarIdHash">[] =
+    await prisma.calendarSelection.findMany({
     where: { connectionId: conn.id, orgId, isBusySource: true },
     select: { calendarIdHash: true },
   });

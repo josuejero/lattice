@@ -1,11 +1,11 @@
-import NextAuth, { type NextAuthOptions } from "next-auth";
+import NextAuth, { type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { Prisma, prisma } from "@lattice/db";
 import { env } from "@/lib/env";
 
-const providers: NextAuthOptions["providers"] = [];
+const providers: NextAuthConfig["providers"] = [];
 
 if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) {
   providers.push(

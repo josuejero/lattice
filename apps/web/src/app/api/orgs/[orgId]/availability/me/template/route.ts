@@ -5,8 +5,13 @@ import { prisma } from "@lattice/db"
 import { fail, ok, ErrorCodes, logAudit, AuditActions } from "@lattice/shared"
 import { requireOrgAccess } from "@/lib/guards"
 import { normalizeIntervals } from "@/lib/availability/intervals"
+import type { Prisma } from "@prisma/client"
 
 export const runtime = "nodejs"
+
+type AvailabilityTemplateWithWindows = Prisma.AvailabilityTemplateGetPayload<{
+  include: { windows: true }
+}>
 
 const WindowSchema = z
   .object({
@@ -131,7 +136,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ orgId:
 
     const userId = access.membership.userId
 
-    const template = await prisma.availabilityTemplate.findUnique({
+    const template: AvailabilityTemplateWithWindows | null =
+      await prisma.availabilityTemplate.findUnique({
       where: { orgId_userId: { orgId, userId } },
       include: { windows: true },
     })
@@ -194,7 +200,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ orgI
     return normalizeIntervals(intervals).map((i) => ({ dayOfWeek, startMinute: i.start, endMinute: i.end }))
   })
 
-  const template = await prisma.availabilityTemplate.upsert({
+  const template: AvailabilityTemplateWithWindows =
+    await prisma.availabilityTemplate.upsert({
     where: { orgId_userId: { orgId, userId } },
     create: {
       orgId,

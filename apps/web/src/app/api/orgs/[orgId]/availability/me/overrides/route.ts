@@ -4,6 +4,7 @@ import { z } from "zod"
 import { prisma } from "@lattice/db"
 import { fail, ok, ErrorCodes, logAudit, AuditActions } from "@lattice/shared"
 import { requireOrgAccess } from "@/lib/guards"
+import type { AvailabilityOverride } from "@prisma/client"
 
 export const runtime = "nodejs"
 
@@ -160,7 +161,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ orgI
       if (to) where.AND.push({ startAt: { lt: new Date(to) } })
     }
 
-    const overrides = await prisma.availabilityOverride.findMany({
+    const overrides: AvailabilityOverride[] =
+      await prisma.availabilityOverride.findMany({
       where,
       orderBy: { startAt: "asc" },
     })

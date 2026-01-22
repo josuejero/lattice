@@ -16,12 +16,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import type { Org } from "@prisma/client";
+
+type DashboardOrg = Pick<Org, "id" | "name" | "slug">;
+
 export default async function Dashboard() {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) redirect("/signin");
 
-  const orgs = await prisma.org.findMany({
+  const orgs: DashboardOrg[] = await prisma.org.findMany({
     where: { members: { some: { userId } } },
     orderBy: { createdAt: "asc" },
     select: { id: true, name: true, slug: true },
@@ -93,12 +97,8 @@ export default async function Dashboard() {
 
         <div className="flex flex-col gap-4">
           <form action={switchOrg} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Select
-              name="orgId"
-              defaultValue={activeOrgId ?? ""}
-              className="w-full sm:w-[240px]"
-            >
-              <SelectTrigger className="w-full">
+            <Select name="orgId" defaultValue={activeOrgId ?? ""}>
+              <SelectTrigger className="w-full sm:w-[240px]">
                 <SelectValue placeholder="Select an org…" />
               </SelectTrigger>
               <SelectContent>

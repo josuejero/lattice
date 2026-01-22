@@ -13,6 +13,7 @@ import {
   computeIdempotencyHash,
 } from "@/lib/idempotency";
 import { loadSuggestionAvailabilityState } from "@/lib/suggestions/state";
+import type { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,31 @@ const Body = z.object({
 async function requireLeader(orgId: string) {
   return requireOrgAccess(orgId, { minRole: "LEADER" });
 }
+
+type SuggestionRequestWithAttendees = Prisma.SuggestionRequestGetPayload<{
+  include: {
+    candidates: true;
+    attendees: {
+      include: {
+        user: {
+          select: { id: true; email: true; name: true };
+        };
+      };
+    };
+  };
+}>;
+
+type ScheduledEventWithAttendees = Prisma.ScheduledEventGetPayload<{
+  include: {
+    attendees: {
+      include: {
+        user: {
+          select: { id: true; email: true; name: true };
+        };
+      };
+    };
+  };
+}>;
 
 /**
  * @openapi
@@ -132,7 +158,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string;
     );
   }
 
-  const requestRow = await prisma.suggestionRequest.findFirst({
+  const requestRow: SuggestionRequestWithAttendees | null =
+    await prisma.suggestionRequest.findFirst({
     where: { id: requestId, orgId },
     include: {
       candidates: { where: { rank: body.candidateRank }, take: 1 },
@@ -219,7 +246,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orgId: string;
     }
   }
 
-  const event = await prisma.$transaction(async (tx) => {
+  const event: ScheduledEventWithAttendees = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const existing = await tx.scheduledEvent.findFirst({
       where: { sourceRequestId: requestId, sourceCandidateRank: body.candidateRank },
       include: { attendees: { include: { user: { select: { id: true, email: true, name: true } } } } },

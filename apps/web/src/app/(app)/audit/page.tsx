@@ -12,6 +12,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import type { Prisma } from "@prisma/client";
+
+type AuditLogWithActor = Prisma.AuditLogGetPayload<{
+  include: {
+    actorUser: {
+      select: {
+        id: true;
+        email: true;
+        name: true;
+      };
+    };
+  };
+}>;
+
 export default async function AuditPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/signin");
@@ -22,7 +36,7 @@ export default async function AuditPage() {
   const access = await requireOrgAccess(orgId, { minRole: "ADMIN" });
   if (!access.ok) redirect("/dashboard");
 
-  const logs = await prisma.auditLog.findMany({
+  const logs: AuditLogWithActor[] = await prisma.auditLog.findMany({
     where: { orgId },
     orderBy: { createdAt: "desc" },
     take: 20,

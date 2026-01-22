@@ -41,6 +41,8 @@ Health check: [http://localhost:3000/api/health](http://localhost:3000/api/healt
 - `pnpm -w db:logs` – tail the Docker logs for both Postgres and Redis.
 - `pnpm -w db:down` – stop and remove the containers once you are done.
 
+If you ever need to run Prisma directly (e.g. `prisma migrate deploy` for a production-ready rollout), run it from the db package with `pnpm --filter ./packages/db exec prisma <command>` so the workspace context stays correct.
+
 ## Development workflow
 
 - `pnpm -w dev` (`pnpm dev` from the root) – runs the Next.js app (UI + API routes) for live editing.

@@ -19,6 +19,7 @@ import { requireOrgAccess } from "@/lib/guards"
 import { parseHHMM } from "@/lib/availability/time"
 import { computeRequestKey, generateSuggestions } from "@/lib/suggestions/engine"
 import { env } from "@/lib/env"
+import type { Prisma } from "@prisma/client"
 
 export const runtime = "nodejs"
 
@@ -48,6 +49,18 @@ function ensureSortedUnique(ids: string[]) {
 async function requireLeader(orgId: string) {
   return requireOrgAccess(orgId, { minRole: "LEADER" })
 }
+
+type LeaderMembership = Extract<
+  Awaited<ReturnType<typeof requireLeader>>,
+  { ok: true }
+>["membership"]
+
+type HydratedSuggestionRequest = Prisma.SuggestionRequestGetPayload<{
+  include: {
+    attendees: true
+    candidates: true
+  }
+}>
 
 /**
  * @openapi
@@ -173,18 +186,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ orgId: 
     return access.response
   }
 
-  return await handleCreateSuggestionRequest(req, access)
+  return await handleCreateSuggestionRequest(req, access.membership)
 }
 
 async function handleCreateSuggestionRequest(
   req: Request,
-  access: Awaited<ReturnType<typeof requireLeader>>,
+  membership: LeaderMembership,
 ) {
   const suggestionLimit = await enforceRateLimit(
     "suggestions",
     buildRateLimitKey(
       "suggestions",
-      [access.membership.orgId, access.membership.userId]
+      [membership.orgId, membership.userId]
     )
   )
   if (!suggestionLimit.allowed) {
@@ -232,7 +245,7 @@ async function handleCreateSuggestionRequest(
   })
 
   const availabilityState = await loadSuggestionAvailabilityState({
-    orgId: access.membership.orgId,
+    orgId: membership.orgId,
     attendeeUserIds,
     rangeStart: rangeStartUtc.toJSDate(),
     rangeEnd: rangeEndUtc.toJSDate(),
@@ -278,7 +291,7 @@ async function handleCreateSuggestionRequest(
     }
   })
 
-  const cacheKey = `suggestions:${access.membership.orgId}:${requestKey}:${dataFingerprint}`
+  const cacheKey = `suggestions:${membership.orgId}:${requestKey}:${dataFingerprint}`
 
   const redisClient = await getRedisClient().catch(() => null)
   let cacheEntry: SuggestionsCacheEntry | null = null
@@ -294,7 +307,7 @@ async function handleCreateSuggestionRequest(
   }
 
   const existing = await prisma.suggestionRequest.findUnique({
-    where: { orgId_requestKey: { orgId: access.membership.orgId, requestKey } },
+    where: { orgId_requestKey: { orgId: membership.orgId, requestKey } },
     select: { id: true },
   })
 
@@ -346,9 +359,9 @@ async function handleCreateSuggestionRequest(
       explanation: candidate.explanation,
     }))
 
-    requestResult = await prisma.$transaction(async (tx) => {
+    requestResult = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const existingTx = await tx.suggestionRequest.findUnique({
-        where: { orgId_requestKey: { orgId: access.membership.orgId, requestKey } },
+        where: { orgId_requestKey: { orgId: membership.orgId, requestKey } },
         include: { attendees: true },
       })
 
@@ -378,8 +391,8 @@ async function handleCreateSuggestionRequest(
 
       return tx.suggestionRequest.create({
         data: {
-          orgId: access.membership.orgId,
-          createdById: access.membership.userId,
+          orgId: membership.orgId,
+          createdById: membership.userId,
           requestKey,
           ...requestData,
         },
@@ -387,7 +400,8 @@ async function handleCreateSuggestionRequest(
     })
   }
 
-  const hydrated = await prisma.suggestionRequest.findUnique({
+  const hydrated: HydratedSuggestionRequest | null =
+    await prisma.suggestionRequest.findUnique({
     where: { id: requestResult.id },
     include: {
       attendees: true,
@@ -403,8 +417,8 @@ async function handleCreateSuggestionRequest(
   }
 
   await logAudit({
-    orgId: access.membership.orgId,
-    actorUserId: access.membership.userId,
+    orgId: membership.orgId,
+    actorUserId: membership.userId,
     action: AuditActions.SUGGESTION_REQUEST_CREATED,
     targetType: "SuggestionRequest",
     targetId: hydrated.id,
@@ -471,7 +485,7 @@ function parseSuggestionsCacheEntry(value: string): SuggestionsCacheEntry | null
       parsed !== null &&
       typeof parsed.requestId === "string" &&
       Array.isArray(parsed.candidateIds) &&
-      parsed.candidateIds.every((candidateId) => typeof candidateId === "string")
+      parsed.candidateIds.every((candidateId: string) => typeof candidateId === "string")
     ) {
       return parsed
     }

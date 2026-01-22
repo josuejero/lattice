@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import {
   buildRateLimitKey,
@@ -40,7 +40,7 @@ import { GET as nextAuthGET, POST as nextAuthPOST } from "@/auth";
 
 const RATE_LIMIT_SCOPE = "auth";
 
-async function applyAuthRateLimit(req: Request) {
+async function applyAuthRateLimit(req: NextRequest) {
   const key = buildRateLimitKey(RATE_LIMIT_SCOPE, [getRequestIp(req)]);
   const result = await enforceRateLimit(RATE_LIMIT_SCOPE, key);
   if (result.allowed) {
@@ -53,13 +53,13 @@ async function applyAuthRateLimit(req: Request) {
   });
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const rateLimitResponse = await applyAuthRateLimit(req);
   if (rateLimitResponse) return rateLimitResponse;
   return nextAuthGET(req);
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const rateLimitResponse = await applyAuthRateLimit(req);
   if (rateLimitResponse) return rateLimitResponse;
   return nextAuthPOST(req);

@@ -55,7 +55,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ orgId: str
     prompt: "consent",
     state,
     code_challenge: challenge,
-    code_challenge_method: "S256",
   });
 
   return NextResponse.redirect(url);
