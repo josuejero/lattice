@@ -2,6 +2,7 @@
 [![Live Site](https://img.shields.io/website?down_color=red&down_message=offline&style=flat&up_color=brightgreen&up_message=online&url=https%3A%2F%2Flattice-web-mauve.vercel.app)](https://lattice-web-mauve.vercel.app/)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-pnpm%20test-lightgrey?style=flat)](#development-workflow)
+[![CI](https://github.com/josuejero/lattice/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/josuejero/lattice/actions/workflows/ci.yml)
 Privacy-respecting scheduling for groups and teams that need to coordinate without sacrificing control or trust.
 
 ## What makes this project special
