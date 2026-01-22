@@ -62,20 +62,22 @@ build_workspace_packages() {
 }
 
 load_prisma_env() {
-  if [ -n "${DATABASE_URL:-}" ]; then
-    return
+  if [ -z "${DATABASE_URL:-}" ]; then
+    local env_files=(".env" ".env.local")
+    for env_file in "${env_files[@]}"; do
+      if [ -f "$env_file" ]; then
+        log "Loading environment variables from $env_file"
+        set -o allexport
+        # shellcheck disable=SC1090
+        source "$env_file"
+        set +o allexport
+      fi
+    done
   fi
 
-  local env_files=(".env" ".env.local")
-  for env_file in "${env_files[@]}"; do
-    if [ -f "$env_file" ]; then
-      log "Loading environment variables from $env_file"
-      set -o allexport
-      # shellcheck disable=SC1090
-      source "$env_file"
-      set +o allexport
-    fi
-  done
+  if [ -n "${DATABASE_URL:-}" ] && [ -z "${DIRECT_URL:-}" ]; then
+    export DIRECT_URL="$DATABASE_URL"
+  fi
 }
 
 ensure_auth_secret() {
