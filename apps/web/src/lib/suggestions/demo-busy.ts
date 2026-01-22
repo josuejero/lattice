@@ -26,16 +26,6 @@ function clampStartMinute(base: number, duration: number): number {
   return Math.min(Math.max(base, EARLIEST_MINUTE), maxStart);
 }
 
-function shiftMinutes(userId: string | null, weekKey: string, pattern: { dayOffset: number }): number {
-  const normalizedUserId = userId ?? ""
-  const digest = createHash("sha256")
-    .update(`${normalizedUserId}:${weekKey}:${pattern.dayOffset}`)
-    .digest("hex");
-  const raw = parseInt(digest.slice(0, 4), 16);
-  const range = MAX_SHIFT_MINUTES * 2 + 1;
-  return (raw % range) - MAX_SHIFT_MINUTES;
-}
-
 function mondayOf(date: DateTime) {
   return date.minus({ days: date.weekday - 1 }).startOf("day");
 }
@@ -50,16 +40,9 @@ export function generateDemoBusyBlocks(params: {
     return [];
   }
 
-  return generateDemoBusyBlocksForUser(userId, params.rangeStart, params.rangeEnd);
-}
-
-function generateDemoBusyBlocksForUser(
-  userId: string,
-  rangeStart: Date,
-  rangeEnd: Date,
-): DemoBusyBlock[] {
-  const rangeStartDt = DateTime.fromJSDate(rangeStart, { zone: "utc" });
-  const rangeEndDt = DateTime.fromJSDate(rangeEnd, { zone: "utc" });
+  const safeUserId = userId!;
+  const rangeStartDt = DateTime.fromJSDate(params.rangeStart, { zone: "utc" });
+  const rangeEndDt = DateTime.fromJSDate(params.rangeEnd, { zone: "utc" });
   const baseWeek = mondayOf(DateTime.utc());
   const blocks: DemoBusyBlock[] = [];
 
@@ -67,7 +50,12 @@ function generateDemoBusyBlocksForUser(
     const weekStart = baseWeek.plus({ weeks: weekOffset });
     for (const pattern of BASE_PATTERNS) {
       const weekKey = weekStart.toISODate();
-      const shift = shiftMinutes(userId, weekKey, pattern);
+      const digest = createHash("sha256")
+        .update(`${safeUserId}:${weekKey}:${pattern.dayOffset}`)
+        .digest("hex");
+      const raw = parseInt(digest.slice(0, 4), 16);
+      const range = MAX_SHIFT_MINUTES * 2 + 1;
+      const shift = (raw % range) - MAX_SHIFT_MINUTES;
       const adjustedStart = clampStartMinute(pattern.baseStartMinute + shift, pattern.durationMinutes);
       const dayStart = weekStart.plus({ days: pattern.dayOffset, minutes: adjustedStart });
       const dayEnd = dayStart.plus({ minutes: pattern.durationMinutes });
@@ -75,7 +63,7 @@ function generateDemoBusyBlocksForUser(
       if (dayEnd <= rangeStartDt || dayStart >= rangeEndDt) continue;
 
       blocks.push({
-        userId,
+        userId: safeUserId,
         startUtc: dayStart.toJSDate(),
         endUtc: dayEnd.toJSDate(),
         createdAt: dayStart.toJSDate(),
