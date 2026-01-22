@@ -45,12 +45,21 @@ export function generateDemoBusyBlocks(params: {
   rangeStart: Date;
   rangeEnd: Date;
 }): DemoBusyBlock[] {
-  const { userId } = params;
-  if (!userId) {
+  const userId = params.userId;
+  if (userId === null) {
     return [];
   }
-  const rangeStart = DateTime.fromJSDate(params.rangeStart, { zone: "utc" });
-  const rangeEnd = DateTime.fromJSDate(params.rangeEnd, { zone: "utc" });
+
+  return generateDemoBusyBlocksForUser(userId, params.rangeStart, params.rangeEnd);
+}
+
+function generateDemoBusyBlocksForUser(
+  userId: string,
+  rangeStart: Date,
+  rangeEnd: Date,
+): DemoBusyBlock[] {
+  const rangeStartDt = DateTime.fromJSDate(rangeStart, { zone: "utc" });
+  const rangeEndDt = DateTime.fromJSDate(rangeEnd, { zone: "utc" });
   const baseWeek = mondayOf(DateTime.utc());
   const blocks: DemoBusyBlock[] = [];
 
@@ -58,13 +67,12 @@ export function generateDemoBusyBlocks(params: {
     const weekStart = baseWeek.plus({ weeks: weekOffset });
     for (const pattern of BASE_PATTERNS) {
       const weekKey = weekStart.toISODate();
-      // userId is guaranteed to be a string after the early return above
       const shift = shiftMinutes(userId, weekKey, pattern);
       const adjustedStart = clampStartMinute(pattern.baseStartMinute + shift, pattern.durationMinutes);
       const dayStart = weekStart.plus({ days: pattern.dayOffset, minutes: adjustedStart });
       const dayEnd = dayStart.plus({ minutes: pattern.durationMinutes });
 
-      if (dayEnd <= rangeStart || dayStart >= rangeEnd) continue;
+      if (dayEnd <= rangeStartDt || dayStart >= rangeEndDt) continue;
 
       blocks.push({
         userId,
