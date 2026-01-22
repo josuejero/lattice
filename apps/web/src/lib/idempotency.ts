@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { Prisma, prisma } from "@lattice/db";
+import { prisma } from "@lattice/db";
 
 const IDEMPOTENCY_KEY_TTL_MS = 1000 * 60 * 15; // 15 minutes
 

@@ -59,8 +59,6 @@ export function generateDemoBusyBlocks(params: {
     for (const pattern of BASE_PATTERNS) {
       const weekKey = weekStart.toISODate();
       // userId is guaranteed to be a string after the early return above
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      // @ts-ignore
       const shift = shiftMinutes(userId, weekKey, pattern);
       const adjustedStart = clampStartMinute(pattern.baseStartMinute + shift, pattern.durationMinutes);
       const dayStart = weekStart.plus({ days: pattern.dayOffset, minutes: adjustedStart });
