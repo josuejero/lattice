@@ -45,7 +45,7 @@ export function generateDemoBusyBlocks(params: {
   rangeStart: Date;
   rangeEnd: Date;
 }): DemoBusyBlock[] {
-  const userId = params.userId ?? "";
+  const { userId } = params;
   if (!userId) {
     return [];
   }
