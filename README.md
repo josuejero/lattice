@@ -79,9 +79,3 @@ If you ever need to run Prisma directly (e.g. `prisma migrate deploy` for a prod
 - Follow `CONTRIBUTING.md` for branching, testing, and review guidelines.
 - Respect the behavior outlined in `CODE_OF_CONDUCT.md`.
 - Need to fix a bug or add a feature? Start by opening an issue with steps to reproduce or a detailed proposal.
-
-## Next steps
-
-1. Run the full test suite (`pnpm -w test`) after completing your changes.
-2. Keep documentation in sync whenever a public API, database schema, or env contract changes.
-3. When in doubt, consult the docs above; file an ADR if you diverge from an existing decision.
