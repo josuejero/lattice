@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 
+import { simulationCandidatesToCsv, simulationSummaryToCsv } from "../src/lib/simulation/csv"
 import { runMockSimulation, simulationToMarkdown } from "../src/lib/simulation/report"
 
 const outputDir = path.resolve(process.cwd(), "../../tmp/mock-simulation")
@@ -21,9 +22,15 @@ const result = runMockSimulation({
 
 const jsonPath = path.join(outputDir, "mock-event-simulation.json")
 const mdPath = path.join(outputDir, "mock-event-simulation.md")
+const summaryCsvPath = path.join(outputDir, "mock-event-summary.csv")
+const candidatesCsvPath = path.join(outputDir, "mock-event-candidates.csv")
 
 fs.writeFileSync(jsonPath, JSON.stringify(result, null, 2) + "\n")
 fs.writeFileSync(mdPath, simulationToMarkdown(result) + "\n")
+fs.writeFileSync(summaryCsvPath, simulationSummaryToCsv(result))
+fs.writeFileSync(candidatesCsvPath, simulationCandidatesToCsv(result))
 
 console.log(`Wrote ${jsonPath}`)
 console.log(`Wrote ${mdPath}`)
+console.log(`Wrote ${summaryCsvPath}`)
+console.log(`Wrote ${candidatesCsvPath}`)
