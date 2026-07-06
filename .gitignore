@@ -9,3 +9,8 @@ node_modules
 dist
 coverage
 playwright-report
+
+# Mock simulation outputs
+tmp/mock-simulation/
+apps/web/test-results/
+apps/web/tmp/
