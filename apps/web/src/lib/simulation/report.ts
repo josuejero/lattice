@@ -3,6 +3,7 @@ import { DateTime } from "luxon"
 import { runEventScenario, type EventAwareCandidate, type EventScenarioResult } from "./event-aware"
 import { generateMockOrg, type MockOrg } from "./mock-org"
 import { PLANNING_SCENARIO_IDS } from "./event-scenarios"
+import { assessScenarioQuality, formatScenarioQuality } from "./quality"
 
 export type MockSimulationResult = {
   org: MockOrg
@@ -44,17 +45,22 @@ function fmtLocalRange(startISO: string, endISO: string, timeZone: string) {
   return `${start.toFormat("ccc, LLL d, yyyy h:mm a")}–${end.toFormat("h:mm a ZZZZ")}`
 }
 
-function recommendationQuality(candidate: EventAwareCandidate | undefined) {
+function recommendationQuality(
+  candidate: EventAwareCandidate | undefined,
+  targetTotal: number,
+) {
   if (!candidate) return "No viable slot"
 
-  const score = candidate.eventAwareScore.total
-  const target = candidate.eventAwareScore.targetTurnout
-  const broad = candidate.eventAwareScore.broadTurnout
-
-  if (score >= 0.8 && target >= 0.65) return "Strong"
-  if (score >= 0.65 && target >= 0.5) return "Usable"
-  if (score >= 0.5 || broad >= 0.5) return "Weak but possible"
-  return "Poor"
+  return formatScenarioQuality(
+    assessScenarioQuality({
+      score: candidate.eventAwareScore.total,
+      targetTurnout: candidate.eventAwareScore.targetTurnout,
+      targetTotal,
+      fairness: candidate.eventAwareScore.fairness,
+      timeFit: candidate.eventAwareScore.timeFit,
+      warningCount: candidate.warnings.length,
+    }),
+  )
 }
 
 function findNearMiss(candidates: EventAwareCandidate[]) {
@@ -159,7 +165,7 @@ export function simulationToMarkdown(result: MockSimulationResult) {
     lines.push(
       [
         `| ${scenario.label}`,
-        recommendationQuality(top),
+        recommendationQuality(top, scenario.targetUserIds.length),
         top ? fmtLocalRange(top.startAt, top.endAt, result.org.timeZone) : "No viable slot",
         top ? fmtPercent(top.eventAwareScore.total) : "n/a",
         top ? `${top.targetAvailableUserIds.length}/${scenario.targetUserIds.length} (${fmtPercent(top.eventAwareScore.targetTurnout)})` : "n/a",
@@ -185,7 +191,7 @@ export function simulationToMarkdown(result: MockSimulationResult) {
     lines.push(`Target tags: ${scenario.targetTags.join(", ")}`)
     lines.push(`Calendar examples: ${scenario.examplesFromCalendar.join("; ")}`)
     lines.push(`Target members: ${scenario.targetUserIds.length} of ${scenario.totalMembers}`)
-    lines.push(`Recommendation quality: ${recommendationQuality(top)}`)
+    lines.push(`Recommendation quality: ${recommendationQuality(top, scenario.targetUserIds.length)}`)
     lines.push("")
 
     lines.push(`#### Best recommendation`)
