@@ -1,10 +1,56 @@
 import { describe, expect, it } from "vitest"
-import { generateSuggestions } from "./engine"
+import { computeRequestKey, generateSuggestions } from "./engine"
 import type { OverrideDTO, WindowDTO } from "./engine"
 
 function makeAttendee(userId: string, timeZone: string, windows: WindowDTO[], overrides: OverrideDTO[] = []) {
   return { userId, timeZone, windows, overrides }
 }
+
+describe("computeRequestKey", () => {
+  const base = {
+    timeZone: "America/New_York",
+    rangeStart: "2026-01-13",
+    rangeEnd: "2026-01-20",
+    durationMinutes: 60,
+    stepMinutes: 15,
+    dayStartMinute: 8 * 60,
+    dayEndMinute: 20 * 60,
+    attendeeUserIds: ["b", "a"],
+  }
+
+  it("is insensitive to attendee and target ordering", () => {
+    const first = computeRequestKey({
+      ...base,
+      eventArchetypeId: "committee_meeting",
+      targetUserIds: ["b", "a"],
+    })
+
+    const second = computeRequestKey({
+      ...base,
+      attendeeUserIds: ["a", "b"],
+      eventArchetypeId: "committee_meeting",
+      targetUserIds: ["a", "b"],
+    })
+
+    expect(first).toBe(second)
+  })
+
+  it("changes when event semantics change", () => {
+    const general = computeRequestKey({
+      ...base,
+      eventArchetypeId: "general_meeting",
+      targetUserIds: ["a", "b"],
+    })
+
+    const committee = computeRequestKey({
+      ...base,
+      eventArchetypeId: "committee_meeting",
+      targetUserIds: ["a"],
+    })
+
+    expect(general).not.toBe(committee)
+  })
+})
 
 describe("generateSuggestions", () => {
   it("is deterministic with tie-breakers", () => {

@@ -1,14 +1,18 @@
+export const EVENT_ARCHETYPE_IDS = [
+  "general_meeting",
+  "committee_meeting",
+  "branch_meeting",
+  "orientation",
+  "training",
+  "canvass",
+  "phonebank",
+  "presentation",
+  "reading_group",
+  "festival",
+] as const
+
 export type EventArchetypeId =
-  | "general_meeting"
-  | "committee_meeting"
-  | "branch_meeting"
-  | "orientation"
-  | "training"
-  | "canvass"
-  | "phonebank"
-  | "presentation"
-  | "reading_group"
-  | "festival"
+  (typeof EVENT_ARCHETYPE_IDS)[number]
 
 export type MemberTag =
   | "broad_member"
@@ -338,5 +342,3 @@ export const EVENT_ARCHETYPES: Record<EventArchetypeId, EventArchetype> = {
     examplesFromCalendar: ["Read and Resist Fest", "Pride tabling / parade events"],
   },
 }
-
-export const EVENT_ARCHETYPE_IDS = Object.keys(EVENT_ARCHETYPES) as EventArchetypeId[]

@@ -297,6 +297,8 @@ model SuggestionRequest {
   stepMinutes     Int      @default(15)
   dayStartMinute  Int      @default(480)
   dayEndMinute    Int      @default(1200)
+  eventArchetypeId String?
+  targetUserIds    String[] @default([])
   dataFingerprint String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -353,8 +355,8 @@ model IdempotencyKey {
   requestHash    String
   responseStatus Int?
   responseBody   Json?
-  createdAt      DateTime @default(now())
-  expiresAt      DateTime
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  expiresAt      DateTime @db.Timestamptz(6)
 
   org Org @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
