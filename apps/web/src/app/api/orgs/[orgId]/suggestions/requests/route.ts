@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { z } from "zod"
+
 import { DateTime } from "luxon"
 
 import { prisma } from "@lattice/db"
@@ -18,35 +18,17 @@ import { loadSuggestionAvailabilityState } from "@/lib/suggestions/state"
 import { requireOrgAccess } from "@/lib/guards"
 import { parseHHMM } from "@/lib/availability/time"
 import { computeRequestKey, generateSuggestions } from "@/lib/suggestions/engine"
-import {
-  EVENT_ARCHETYPES,
-  EVENT_ARCHETYPE_IDS,
-} from "@/lib/suggestions/event-archetypes"
+import { EVENT_ARCHETYPES } from "@/lib/suggestions/event-archetypes"
 import { rankEventAwareCandidates } from "@/lib/suggestions/event-aware"
+import {
+  normalizeSuggestionRequestTargets,
+  SuggestionRequestInputSchema,
+} from "@/lib/suggestions/request-contract"
 import { env } from "@/lib/env"
 import type { Prisma } from "@prisma/client"
 
 export const runtime = "nodejs"
 
-const MAX_EVENT_DURATION_MINUTES = Math.max(
-  ...EVENT_ARCHETYPE_IDS.map(
-    (id) => EVENT_ARCHETYPES[id].durationMinutes,
-  ),
-)
-
-const CreateSchema = z.object({
-  title: z.string().max(80).optional(),
-  timeZone: z.string().min(1),
-  rangeStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  rangeEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  durationMinutes: z.number().int().min(15).max(MAX_EVENT_DURATION_MINUTES),
-  stepMinutes: z.number().int().min(5).max(60).default(15),
-  dayStart: z.string().regex(/^\d{2}:\d{2}$/).default("08:00"),
-  dayEnd: z.string().regex(/^\d{2}:\d{2}$/).default("20:00"),
-  eventArchetypeId: z.enum(EVENT_ARCHETYPE_IDS).default("general_meeting"),
-  targetUserIds: z.array(z.string().min(1)).min(1).optional(),
-  attendeeUserIds: z.array(z.string().min(1)).min(1),
-})
 
 const SUGGESTION_CACHE_TTL_SECONDS = env.NODE_ENV === "production" ? 240 : 60
 const EVENT_AWARE_BASE_CANDIDATE_LIMIT = 500
@@ -57,9 +39,6 @@ type SuggestionsCacheEntry = {
   candidateIds: string[]
 }
 
-function ensureSortedUnique(ids: string[]) {
-  return [...new Set(ids)].sort()
-}
 
 async function requireLeader(orgId: string) {
   return requireOrgAccess(orgId, { minRole: "LEADER" })
@@ -242,19 +221,16 @@ async function handleCreateSuggestionRequest(
     )
   }
 
-  const body = CreateSchema.parse(await req.json())
+  const body = SuggestionRequestInputSchema.parse(await req.json())
 
-  const attendeeUserIds = ensureSortedUnique(body.attendeeUserIds)
-  const targetUserIds = ensureSortedUnique(
-    body.targetUserIds ?? attendeeUserIds,
-  )
+  const {
+    attendeeUserIds,
+    targetUserIds,
+    invalidTargetUserIds,
+  } = normalizeSuggestionRequestTargets(body)
+
   const eventArchetypeId = body.eventArchetypeId
   const archetype = EVENT_ARCHETYPES[eventArchetypeId]
-
-  const attendeeUserIdSet = new Set(attendeeUserIds)
-  const invalidTargetUserIds = targetUserIds.filter(
-    (userId) => !attendeeUserIdSet.has(userId),
-  )
 
   if (invalidTargetUserIds.length > 0) {
     return NextResponse.json(

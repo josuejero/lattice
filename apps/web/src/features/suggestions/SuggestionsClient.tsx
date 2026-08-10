@@ -11,6 +11,14 @@ import {
   EVENT_ARCHETYPE_IDS,
   type EventArchetypeId,
 } from "@/lib/suggestions/event-archetypes"
+import {
+  DEFAULT_EVENT_ARCHETYPE,
+  DEFAULT_EVENT_ARCHETYPE_ID,
+  DURATION_OPTIONS,
+  effectiveTargetUserIds as resolveEffectiveTargetUserIds,
+  eventArchetypeFormDefaults,
+  minuteToHHMM,
+} from "@/lib/suggestions/form-contract"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -57,35 +65,9 @@ type Candidate = {
   }
 }
 
-function minuteToHHMM(minute: number) {
-  const hour = Math.floor(minute / 60)
-  const remainder = minute % 60
-  return `${String(hour).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
-}
-
 function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
 }
-
-const DEFAULT_EVENT_ARCHETYPE_ID: EventArchetypeId =
-  "general_meeting"
-
-const DEFAULT_EVENT_ARCHETYPE =
-  EVENT_ARCHETYPES[DEFAULT_EVENT_ARCHETYPE_ID]
-
-const DURATION_OPTIONS = Array.from(
-  new Set([
-    15,
-    30,
-    45,
-    60,
-    90,
-    120,
-    ...EVENT_ARCHETYPE_IDS.map(
-      (id) => EVENT_ARCHETYPES[id].durationMinutes,
-    ),
-  ]),
-).sort((a, b) => a - b)
 
 export default function SuggestionsClient({ orgId, orgName }: { orgId: string; orgName: string }) {
   const [members, setMembers] = useState<Member[]>([])
@@ -96,7 +78,11 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
 
   const archetype = EVENT_ARCHETYPES[eventArchetypeId]
   const effectiveTargetUserIds =
-    archetype.broadAudience ? selected : targetSelected
+    resolveEffectiveTargetUserIds({
+      eventArchetypeId,
+      selectedUserIds: selected,
+      targetUserIds: targetSelected,
+    })
 
   const [timeZone, setTimeZone] = useState<string>(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
@@ -199,13 +185,14 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
       return
     }
 
-    const nextArchetype = EVENT_ARCHETYPES[nextId]
+    const defaults =
+      eventArchetypeFormDefaults(nextId)
 
     setEventArchetypeId(nextId)
-    setDurationMinutes(nextArchetype.durationMinutes)
-    setStepMinutes(nextArchetype.stepMinutes)
-    setDayStart(minuteToHHMM(nextArchetype.dayStartMinute))
-    setDayEnd(minuteToHHMM(nextArchetype.dayEndMinute))
+    setDurationMinutes(defaults.durationMinutes)
+    setStepMinutes(defaults.stepMinutes)
+    setDayStart(defaults.dayStart)
+    setDayEnd(defaults.dayEnd)
 
     if (nextArchetype.broadAudience) {
       setTargetSelected(selected)
