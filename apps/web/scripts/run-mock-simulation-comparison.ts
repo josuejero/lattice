@@ -5,6 +5,11 @@ import { DateTime } from "luxon"
 
 import { simulationSummaryToCsv } from "../src/lib/simulation/csv"
 import {
+  comparisonMarkdownHeader,
+  comparisonMarkdownSeparator,
+  orderComparisonSummaryRow,
+} from "../src/lib/simulation/comparison-output"
+import {
   scenarioPatternStabilityLabel,
   scenarioQualityThresholds,
 } from "../src/lib/simulation/quality"
@@ -425,7 +430,13 @@ async function main(): Promise<void> {
   const markdownPath = join(outDir, "mock-event-comparison.md")
 
   await writeFile(runsCsvPath, rowsToCsv(runRows), "utf8")
-  await writeFile(summaryCsvPath, rowsToCsv(aggregateRows), "utf8")
+  await writeFile(
+    summaryCsvPath,
+    rowsToCsv(
+      aggregateRows.map(orderComparisonSummaryRow),
+    ),
+    "utf8",
+  )
   await writeFile(
     markdownPath,
     [
@@ -437,8 +448,8 @@ async function main(): Promise<void> {
       "",
       "## Scenario stability summary",
       "",
-      "| Scenario | Runs | Most common quality | Quality share | Unique exact slots | Exact slot repeatability | Most common pattern | Pattern share | Pattern stability | Avg score | Avg target turnout | Warning runs | Low target runs | Low fairness runs | Weak time-fit runs |",
-      "|---|---:|---|---:|---:|---:|---|---:|---|---:|---:|---:|---:|---:|---:|",
+      comparisonMarkdownHeader(),
+      comparisonMarkdownSeparator(),
       ...aggregateRows
         .map((row) =>
           [

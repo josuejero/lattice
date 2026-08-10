@@ -5,6 +5,8 @@ import type { Interval } from "@/lib/availability/intervals"
 import { normalizeIntervals, subtractIntervals, unionIntervals } from "@/lib/availability/intervals"
 import { overrideToLocalIntervalForDate } from "@/lib/availability/time"
 
+import type { EventArchetypeId } from "./event-archetypes"
+
 export type OverrideDTO = {
   startAt: string
   endAt: string
@@ -64,11 +66,19 @@ export type GenerateSuggestionsInput = {
 }
 
 export function computeRequestKey(
-  input: Omit<GenerateSuggestionsInput, "attendees" | "maxCandidates"> & { attendeeUserIds: string[] },
+  input: Omit<
+    GenerateSuggestionsInput,
+    "attendees" | "maxCandidates"
+  > & {
+    attendeeUserIds: string[]
+    eventArchetypeId?: EventArchetypeId
+    targetUserIds?: string[]
+  },
 ) {
   const stable = {
     ...input,
     attendeeUserIds: [...input.attendeeUserIds].sort(),
+    targetUserIds: [...(input.targetUserIds ?? [])].sort(),
   }
   return createHash("sha256").update(JSON.stringify(stable)).digest("hex")
 }

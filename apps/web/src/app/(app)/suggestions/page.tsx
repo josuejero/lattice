@@ -41,7 +41,9 @@ export default async function SuggestionsPage() {
   return (
     <div style={{ padding: 24 }}>
       <h1>Suggestions</h1>
-      <p>Create a request and get ranked meeting slots based on member availability.</p>
+      <p>
+        Create a request and rank meeting slots by availability, event type, and priority attendees.
+      </p>
       <SuggestionsClient orgId={org.id} orgName={org.name} />
     </div>
   )
