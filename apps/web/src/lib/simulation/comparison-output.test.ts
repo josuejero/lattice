@@ -1,67 +1,68 @@
 import { describe, expect, it } from "vitest"
 
-import { existsSync, readFileSync } from "node:fs"
-import { join } from "node:path"
-
-const comparisonDir = join(process.cwd(), "tmp", "mock-simulation")
-const appsWebComparisonDir = join(process.cwd(), "apps", "web", "tmp", "mock-simulation")
-
-function existingComparisonPath(fileName: string) {
-  const rootPath = join(comparisonDir, fileName)
-  const appsWebPath = join(appsWebComparisonDir, fileName)
-
-  if (existsSync(appsWebPath)) return appsWebPath
-  if (existsSync(rootPath)) return rootPath
-
-  throw new Error(
-    `Missing generated comparison output ${fileName}. Run pnpm -C apps/web simulate:mock:comparison before this test.`,
-  )
-}
-
-function csvHeader(path: string) {
-  return readFileSync(path, "utf8").split(/\r?\n/)[0]?.split(",") ?? []
-}
-
-function markdownTableHeader(path: string) {
-  const lines = readFileSync(path, "utf8").split(/\r?\n/)
-  const headerLine = lines.find((line) => line.startsWith("| Scenario |"))
-
-  if (!headerLine) {
-    throw new Error(`Could not find comparison Markdown table header in ${path}`)
-  }
-
-  return headerLine
-    .split("|")
-    .map((cell) => cell.trim())
-    .filter(Boolean)
-}
+import {
+  COMPARISON_MARKDOWN_COLUMNS,
+  COMPARISON_SUMMARY_COLUMNS,
+  comparisonMarkdownHeader,
+  comparisonMarkdownSeparator,
+  orderComparisonSummaryRow,
+} from "./comparison-output"
 
 describe("mock simulation comparison output schema", () => {
   it("separates exact-slot repeatability from scheduling-pattern stability", () => {
-    const path = existingComparisonPath("mock-event-comparison-summary.csv")
-    const header = csvHeader(path)
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "warning_runs",
+    )
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "low_target_turnout_runs",
+    )
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "low_fairness_runs",
+    )
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "weak_time_fit_runs",
+    )
 
-    expect(header).toContain("warning_runs")
-    expect(header).toContain("low_target_turnout_runs")
-    expect(header).toContain("low_fairness_runs")
-    expect(header).toContain("weak_time_fit_runs")
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "unique_best_slots",
+    )
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "most_common_slot_share",
+    )
 
-    expect(header).toContain("unique_best_slots")
-    expect(header).toContain("most_common_slot_share")
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "unique_best_patterns",
+    )
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "most_common_pattern",
+    )
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "most_common_pattern_share",
+    )
+    expect(COMPARISON_SUMMARY_COLUMNS).toContain(
+      "pattern_stability",
+    )
 
-    expect(header).toContain("unique_best_patterns")
-    expect(header).toContain("most_common_pattern")
-    expect(header).toContain("most_common_pattern_share")
-    expect(header).toContain("pattern_stability")
+    expect(COMPARISON_SUMMARY_COLUMNS).not.toContain(
+      "slot_stability",
+    )
 
-    expect(header).not.toContain("slot_stability")
+    const ordered = orderComparisonSummaryRow({
+      scenario_id: "example",
+      slot_stability: "should-not-leak",
+    })
+
+    expect(Object.keys(ordered)).toEqual([
+      ...COMPARISON_SUMMARY_COLUMNS,
+    ])
+
+    expect(ordered).not.toHaveProperty(
+      "slot_stability",
+    )
   })
 
   it("keeps comparison markdown aligned with the CSV schema", () => {
-    const path = existingComparisonPath("mock-event-comparison.md")
-    const header = markdownTableHeader(path)
-
-    expect(header).toEqual([
+    expect(COMPARISON_MARKDOWN_COLUMNS).toEqual([
       "Scenario",
       "Runs",
       "Most common quality",
@@ -79,6 +80,21 @@ describe("mock simulation comparison output schema", () => {
       "Weak time-fit runs",
     ])
 
-    expect(header).not.toContain("Slot stability")
+    expect(COMPARISON_MARKDOWN_COLUMNS).not.toContain(
+      "Slot stability",
+    )
+
+    const header = comparisonMarkdownHeader()
+    const separator = comparisonMarkdownSeparator()
+
+    expect(header).toBe(
+      `| ${COMPARISON_MARKDOWN_COLUMNS.join(" | ")} |`,
+    )
+
+    expect(
+      separator.split("|").filter(Boolean),
+    ).toHaveLength(
+      COMPARISON_MARKDOWN_COLUMNS.length,
+    )
   })
 })
