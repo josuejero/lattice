@@ -6,6 +6,11 @@ import { DateTime } from "luxon"
 import { toast } from "sonner"
 
 import { ApiError, fetchJson } from "@/lib/http"
+import {
+  EVENT_ARCHETYPES,
+  EVENT_ARCHETYPE_IDS,
+  type EventArchetypeId,
+} from "@/lib/suggestions/event-archetypes"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -24,6 +29,20 @@ type Member = {
   role: string
 }
 
+type EventAwareExplanation = {
+  archetypeId: EventArchetypeId
+  baseRank: number
+  baseScoreTotal: number
+  targetTurnout: number
+  broadTurnout: number
+  timeFit: number
+  fairness: number
+  inconvenience: number
+  targetAvailableUserIds: string[]
+  targetMissingUserIds: string[]
+  warnings: string[]
+}
+
 type Candidate = {
   rank: number
   startAt: string
@@ -32,22 +51,68 @@ type Candidate = {
   score: { total: number; attendance: number; inconvenience: number; fairness: number }
   availableUserIds: string[]
   missingUserIds: string[]
-  explanation: { why: string[] }
+  explanation: {
+    why: string[]
+    eventAware?: EventAwareExplanation
+  }
 }
+
+function minuteToHHMM(minute: number) {
+  const hour = Math.floor(minute / 60)
+  const remainder = minute % 60
+  return `${String(hour).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
+}
+
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`
+}
+
+const DEFAULT_EVENT_ARCHETYPE_ID: EventArchetypeId =
+  "general_meeting"
+
+const DEFAULT_EVENT_ARCHETYPE =
+  EVENT_ARCHETYPES[DEFAULT_EVENT_ARCHETYPE_ID]
+
+const DURATION_OPTIONS = Array.from(
+  new Set([
+    15,
+    30,
+    45,
+    60,
+    90,
+    120,
+    ...EVENT_ARCHETYPE_IDS.map(
+      (id) => EVENT_ARCHETYPES[id].durationMinutes,
+    ),
+  ]),
+).sort((a, b) => a - b)
 
 export default function SuggestionsClient({ orgId, orgName }: { orgId: string; orgName: string }) {
   const [members, setMembers] = useState<Member[]>([])
   const [selected, setSelected] = useState<string[]>([])
+  const [targetSelected, setTargetSelected] = useState<string[]>([])
+  const [eventArchetypeId, setEventArchetypeId] =
+    useState<EventArchetypeId>(DEFAULT_EVENT_ARCHETYPE_ID)
+
+  const archetype = EVENT_ARCHETYPES[eventArchetypeId]
+  const effectiveTargetUserIds =
+    archetype.broadAudience ? selected : targetSelected
 
   const [timeZone, setTimeZone] = useState<string>(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
   )
   const [rangeStart, setRangeStart] = useState<string>(() => DateTime.now().toISODate() ?? "")
   const [rangeEnd, setRangeEnd] = useState<string>(() => DateTime.now().plus({ days: 7 }).toISODate() ?? "")
-  const [durationMinutes, setDurationMinutes] = useState<number>(30)
-  const [stepMinutes, setStepMinutes] = useState<number>(15)
-  const [dayStart, setDayStart] = useState<string>("08:00")
-  const [dayEnd, setDayEnd] = useState<string>("20:00")
+  const [durationMinutes, setDurationMinutes] =
+    useState<number>(DEFAULT_EVENT_ARCHETYPE.durationMinutes)
+  const [stepMinutes, setStepMinutes] =
+    useState<number>(DEFAULT_EVENT_ARCHETYPE.stepMinutes)
+  const [dayStart, setDayStart] = useState<string>(
+    minuteToHHMM(DEFAULT_EVENT_ARCHETYPE.dayStartMinute),
+  )
+  const [dayEnd, setDayEnd] = useState<string>(
+    minuteToHHMM(DEFAULT_EVENT_ARCHETYPE.dayEndMinute),
+  )
   const [title, setTitle] = useState<string>("")
 
   const [loading, setLoading] = useState(false)
@@ -60,6 +125,7 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
   const [writeBack, setWriteBack] = useState(false)
   const baseId = useId()
   const fieldIds = {
+    eventType: `${baseId}-event-type`,
     title: `${baseId}-title`,
     timeZone: `${baseId}-timezone`,
     rangeStart: `${baseId}-range-start`,
@@ -81,19 +147,75 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
       try {
         const data = await fetchJson<{ members?: Member[] }>(`/api/orgs/${orgId}/members`)
         const fetched = Array.isArray(data.members) ? data.members : []
+        const initiallySelected = fetched.slice(0, 2).map((member) => member.userId)
+
         setMembers(fetched)
-        setSelected(fetched.slice(0, 2).map((member) => member.userId))
+        setSelected(initiallySelected)
+        setTargetSelected(initiallySelected)
       } catch {
         setMembers([])
         setSelected([])
+        setTargetSelected([])
       }
     })()
   }, [orgId])
 
   function toggleUser(userId: string) {
-    setSelected((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    const wasSelected = selected.includes(userId)
+
+    setSelected(
+      wasSelected
+        ? selected.filter((id) => id !== userId)
+        : [...selected, userId],
     )
+
+    setTargetSelected((previous) => {
+      if (wasSelected) {
+        return previous.filter((id) => id !== userId)
+      }
+
+      if (archetype.broadAudience && !previous.includes(userId)) {
+        return [...previous, userId]
+      }
+
+      return previous
+    })
+  }
+
+  function toggleTargetUser(userId: string) {
+    if (!selected.includes(userId)) return
+
+    setTargetSelected((previous) =>
+      previous.includes(userId)
+        ? previous.filter((id) => id !== userId)
+        : [...previous, userId],
+    )
+  }
+
+  function changeEventArchetype(value: string) {
+    const nextId = value as EventArchetypeId
+
+    if (!EVENT_ARCHETYPE_IDS.includes(nextId)) {
+      return
+    }
+
+    const nextArchetype = EVENT_ARCHETYPES[nextId]
+
+    setEventArchetypeId(nextId)
+    setDurationMinutes(nextArchetype.durationMinutes)
+    setStepMinutes(nextArchetype.stepMinutes)
+    setDayStart(minuteToHHMM(nextArchetype.dayStartMinute))
+    setDayEnd(minuteToHHMM(nextArchetype.dayEndMinute))
+
+    if (nextArchetype.broadAudience) {
+      setTargetSelected(selected)
+      return
+    }
+
+    setTargetSelected((previous) => {
+      const stillSelected = previous.filter((id) => selected.includes(id))
+      return stillSelected.length > 0 ? stillSelected : selected
+    })
   }
 
   async function onSubmit(event: React.FormEvent) {
@@ -120,6 +242,8 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
             stepMinutes,
             dayStart,
             dayEnd,
+            eventArchetypeId,
+            targetUserIds: effectiveTargetUserIds,
             attendeeUserIds: selected,
           }),
         },
@@ -195,6 +319,30 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1">
+            <label htmlFor={fieldIds.eventType} className="text-sm font-medium">
+              Event type
+            </label>
+            <Select
+              value={eventArchetypeId}
+              onValueChange={changeEventArchetype}
+            >
+              <SelectTrigger id={fieldIds.eventType} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EVENT_ARCHETYPE_IDS.map((id) => (
+                  <SelectItem key={id} value={id}>
+                    {EVENT_ARCHETYPES[id].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {archetype.description}
+            </p>
+          </div>
+
+          <div className="space-y-1">
             <label htmlFor={fieldIds.title} className="text-sm font-medium">
               Title (optional)
             </label>
@@ -246,7 +394,7 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {[15, 30, 45, 60, 90, 120].map((value) => (
+                {DURATION_OPTIONS.map((value) => (
                   <SelectItem key={value} value={String(value)}>
                     {value} min
                   </SelectItem>
@@ -317,15 +465,70 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
           </div>
         </div>
 
+        {archetype.broadAudience ? (
+          <div className="rounded-lg border border-border/60 px-3 py-3">
+            <p className="text-sm font-medium">Priority attendees</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This event type treats every selected attendee as part of the priority group.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Priority attendees</p>
+                <p className="text-xs text-muted-foreground">
+                  These attendees receive extra weight when slots are ranked.
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select at least one
+              </p>
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-2">
+              {members
+                .filter((member) => selected.includes(member.userId))
+                .map((member) => (
+                  <label
+                    key={member.userId}
+                    className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={targetSelected.includes(member.userId)}
+                      onCheckedChange={() => toggleTargetUser(member.userId)}
+                    />
+                    <div>
+                      <span>{nameFor(member.userId)}</span>
+                      <p className="text-xs text-muted-foreground">{member.role}</p>
+                    </div>
+                  </label>
+                ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <Checkbox checked={writeBack} onCheckedChange={(checked) => setWriteBack(Boolean(checked))} />
           <span className="text-sm">Write to Google Calendar (optional)</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={loading || selected.length === 0}>
+          <Button
+            type="submit"
+            disabled={
+              loading ||
+              selected.length === 0 ||
+              effectiveTargetUserIds.length === 0
+            }
+          >
             {loading ? "Generating…" : "Generate suggestions"}
           </Button>
+          {selected.length > 0 && effectiveTargetUserIds.length === 0 ? (
+            <p className="text-sm text-destructive">
+              Select at least one priority attendee.
+            </p>
+          ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>
       </form>
@@ -354,9 +557,24 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
                   <span className="font-semibold">
                     #{candidate.rank}: {formatLocal(candidate.startAt)} — {formatLocal(candidate.endAt)}
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    Score: {candidate.score.total.toFixed(2)} (att {candidate.score.attendance.toFixed(2)} · inc {candidate.score.inconvenience.toFixed(2)} · fair {candidate.score.fairness.toFixed(2)})
-                  </span>
+                  {candidate.explanation.eventAware ? (
+                    <>
+                      <span className="text-xs text-muted-foreground">
+                        Event-aware score: {candidate.score.total.toFixed(2)} · Target turnout:{" "}
+                        {formatPercent(candidate.explanation.eventAware.targetTurnout)} · Broad turnout:{" "}
+                        {formatPercent(candidate.explanation.eventAware.broadTurnout)} · Time fit:{" "}
+                        {formatPercent(candidate.explanation.eventAware.timeFit)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Base score: {candidate.explanation.eventAware.baseScoreTotal.toFixed(2)} ·
+                        Fairness: {formatPercent(candidate.explanation.eventAware.fairness)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      Score: {candidate.score.total.toFixed(2)} (att {candidate.score.attendance.toFixed(2)} · inc {candidate.score.inconvenience.toFixed(2)} · fair {candidate.score.fairness.toFixed(2)})
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     Available: {candidate.availableUserIds.length} · Missing: {candidate.missingUserIds.length}
                   </span>
@@ -366,11 +584,29 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
                     <p key={index}>{line}</p>
                   ))}
                 </div>
-                {candidate.missingUserIds.length ? (
+                {candidate.explanation.eventAware?.targetMissingUserIds.length ? (
                   <div className="text-xs text-muted-foreground">
-                    Missing: {candidate.missingUserIds.map((id) => nameFor(id)).join(", ")}
+                    Missing priority attendees:{" "}
+                    {candidate.explanation.eventAware.targetMissingUserIds
+                      .map((id) => nameFor(id))
+                      .join(", ")}
                   </div>
                 ) : null}
+
+                {candidate.explanation.eventAware?.warnings.length ? (
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    {candidate.explanation.eventAware.warnings.map((warning) => (
+                      <p key={warning}>Warning: {warning}</p>
+                    ))}
+                  </div>
+                ) : null}
+
+                {candidate.missingUserIds.length ? (
+                  <div className="text-xs text-muted-foreground">
+                    Missing overall: {candidate.missingUserIds.map((id) => nameFor(id)).join(", ")}
+                  </div>
+                ) : null}
+
                 <div className="flex justify-end">
                   <Button
                     variant="secondary"
