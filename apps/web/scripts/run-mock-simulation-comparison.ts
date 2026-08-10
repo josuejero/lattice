@@ -1,7 +1,18 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 
+import { DateTime } from "luxon"
+
 import { simulationSummaryToCsv } from "../src/lib/simulation/csv"
+import {
+  comparisonMarkdownHeader,
+  comparisonMarkdownSeparator,
+  orderComparisonSummaryRow,
+} from "../src/lib/simulation/comparison-output"
+import {
+  scenarioPatternStabilityLabel,
+  scenarioQualityThresholds,
+} from "../src/lib/simulation/quality"
 import { runMockSimulation } from "../src/lib/simulation/report"
 
 type CsvRow = Record<string, string>
@@ -12,9 +23,13 @@ type ScenarioAggregate = {
   runs: number
   qualityCounts: Map<string, number>
   slotCounts: Map<string, number>
+  patternCounts: Map<string, number>
   scoreValues: number[]
   targetTurnoutValues: number[]
   warningCount: number
+  lowTargetTurnoutCount: number
+  lowFairnessCount: number
+  weakTimeFitCount: number
 }
 
 const DEFAULT_SEEDS = [20260701, 20260702, 20260703, 20260704, 20260705]
@@ -177,6 +192,42 @@ function slotKey(row: CsvRow): string {
   return [date, day, time, label].filter(Boolean).join(" ") || "unknown"
 }
 
+function schedulingPatternKey(row: CsvRow): string {
+  const bestStart = firstValue(row, ["best_start_local", "bestStartLocal"])
+  const bestEnd = firstValue(row, ["best_end_local", "bestEndLocal"])
+
+  if (!bestStart || !bestEnd) {
+    return "unknown"
+  }
+
+  // These values are already local wall-clock times. Parsing in UTC keeps
+  // weekday/hour bucketing independent of the machine running the comparison.
+  const start = DateTime.fromFormat(bestStart, "yyyy-MM-dd HH:mm", { zone: "UTC" })
+  const end = DateTime.fromFormat(bestEnd, "yyyy-MM-dd HH:mm", { zone: "UTC" })
+
+  if (!start.isValid || !end.isValid) {
+    return "unknown"
+  }
+
+  const durationMinutes = Math.round(end.diff(start, "minutes").minutes)
+  if (durationMinutes <= 0) {
+    return "unknown"
+  }
+
+  const startMinutes = start.hour * 60 + start.minute
+
+  const timeBand =
+    startMinutes < 12 * 60
+      ? "morning"
+      : startMinutes < 17 * 60
+        ? "afternoon"
+        : startMinutes < 22 * 60
+          ? "evening"
+          : "late"
+
+  return `weekday=${start.weekday};band=${timeBand};duration=${durationMinutes}m`
+}
+
 function increment(map: Map<string, number>, key: string): void {
   map.set(key, (map.get(key) ?? 0) + 1)
 }
@@ -200,6 +251,7 @@ function mostCommon(map: Map<string, number>): { key: string; count: number; sha
     share: total > 0 ? bestCount / total : 0,
   }
 }
+
 
 function average(values: number[]): string {
   if (values.length === 0) return ""
@@ -275,6 +327,7 @@ async function main(): Promise<void> {
         const quality = firstValue(row, ["quality", "quality_label", "qualityLabel"]) || "unknown"
         const warning = firstValue(row, ["main_warning", "warning", "warnings"])
         const slot = slotKey(row)
+        const pattern = schedulingPatternKey(row)
 
         runRows.push({
           seed: String(seed),
@@ -291,14 +344,19 @@ async function main(): Promise<void> {
             runs: 0,
             qualityCounts: new Map<string, number>(),
             slotCounts: new Map<string, number>(),
+            patternCounts: new Map<string, number>(),
             scoreValues: [],
             targetTurnoutValues: [],
             warningCount: 0,
+            lowTargetTurnoutCount: 0,
+            lowFairnessCount: 0,
+            weakTimeFitCount: 0,
           }
 
         aggregate.runs += 1
         increment(aggregate.qualityCounts, quality)
         increment(aggregate.slotCounts, slot)
+        increment(aggregate.patternCounts, pattern)
 
         const score = firstNumber(row, [
           "event_score",
@@ -322,6 +380,14 @@ async function main(): Promise<void> {
 
         if (warning && warning.toLowerCase() !== "none") aggregate.warningCount += 1
 
+        const fairness = firstNumber(row, ["fairness", "fairness_score", "fairnessScore"])
+        if (fairness !== null && fairness < scenarioQualityThresholds.lowFairnessBelow) aggregate.lowFairnessCount += 1
+
+        const timeFit = firstNumber(row, ["time_fit", "timeFit", "time_fit_score", "timeFitScore"])
+        if (timeFit !== null && timeFit < scenarioQualityThresholds.weakTimeFitBelow) aggregate.weakTimeFitCount += 1
+
+        if (targetTurnout !== null && targetTurnout < scenarioQualityThresholds.lowTargetTurnoutBelow) aggregate.lowTargetTurnoutCount += 1
+
         aggregates.set(scenarioId, aggregate)
       }
     }
@@ -332,6 +398,7 @@ async function main(): Promise<void> {
     .map((aggregate) => {
       const quality = mostCommon(aggregate.qualityCounts)
       const slot = mostCommon(aggregate.slotCounts)
+      const pattern = mostCommon(aggregate.patternCounts)
 
       return {
         scenario_id: aggregate.scenarioId,
@@ -344,9 +411,17 @@ async function main(): Promise<void> {
         most_common_slot: slot.key,
         most_common_slot_count: String(slot.count),
         most_common_slot_share: slot.share.toFixed(4),
+        unique_best_patterns: String(aggregate.patternCounts.size),
+        most_common_pattern: pattern.key,
+        most_common_pattern_count: String(pattern.count),
+        most_common_pattern_share: pattern.share.toFixed(4),
+        pattern_stability: scenarioPatternStabilityLabel(pattern.share),
         avg_score: average(aggregate.scoreValues),
         avg_target_turnout: average(aggregate.targetTurnoutValues),
         warning_runs: String(aggregate.warningCount),
+        low_target_turnout_runs: String(aggregate.lowTargetTurnoutCount),
+        low_fairness_runs: String(aggregate.lowFairnessCount),
+        weak_time_fit_runs: String(aggregate.weakTimeFitCount),
       }
     })
 
@@ -355,7 +430,13 @@ async function main(): Promise<void> {
   const markdownPath = join(outDir, "mock-event-comparison.md")
 
   await writeFile(runsCsvPath, rowsToCsv(runRows), "utf8")
-  await writeFile(summaryCsvPath, rowsToCsv(aggregateRows), "utf8")
+  await writeFile(
+    summaryCsvPath,
+    rowsToCsv(
+      aggregateRows.map(orderComparisonSummaryRow),
+    ),
+    "utf8",
+  )
   await writeFile(
     markdownPath,
     [
@@ -367,8 +448,8 @@ async function main(): Promise<void> {
       "",
       "## Scenario stability summary",
       "",
-      "| Scenario | Runs | Most common quality | Quality share | Unique best slots | Most common slot share | Avg score | Avg target turnout | Warning runs |",
-      "|---|---:|---|---:|---:|---:|---:|---:|---:|",
+      comparisonMarkdownHeader(),
+      comparisonMarkdownSeparator(),
       ...aggregateRows
         .map((row) =>
           [
@@ -378,9 +459,15 @@ async function main(): Promise<void> {
             row.most_common_quality_share,
             row.unique_best_slots,
             row.most_common_slot_share,
+            row.most_common_pattern,
+            row.most_common_pattern_share,
+            row.pattern_stability,
             row.avg_score,
             row.avg_target_turnout,
             row.warning_runs,
+            row.low_target_turnout_runs,
+            row.low_fairness_runs,
+            row.weak_time_fit_runs,
           ]
             .map((value) => String(value ?? "").replaceAll("|", "\\|"))
             .join(" | "),

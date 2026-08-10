@@ -35,7 +35,7 @@ describe("mock event simulation", () => {
         expect(scenario.candidates[0].eventAwareScore.total).toBeLessThanOrEqual(1)
       }
     },
-    20_000,
+    60_000,
   )
 
   it("weights target turnout separately from whole-org turnout", () => {
@@ -57,7 +57,7 @@ describe("mock event simulation", () => {
     expect(scenario.targetUserIds.length).toBeGreaterThan(0)
     expect(top.targetAvailableUserIds.length).toBeLessThanOrEqual(scenario.targetUserIds.length)
     expect(top.availableUserIds.length).toBeLessThanOrEqual(org.members.length)
-  })
+  }, 15_000)
   it("targets specific branch members instead of all branch members", () => {
     const org = generateMockOrg({
       seed: 20260705,

@@ -1,6 +1,7 @@
 import { DateTime } from "luxon"
 
 import type { MockSimulationResult } from "./report"
+import { assessScenarioQuality, formatScenarioQuality, scenarioQualityLabel } from "./quality"
 
 function csvCell(value: unknown) {
   const text = value == null ? "" : String(value)
@@ -22,12 +23,31 @@ function fmtLocal(startISO: string, timeZone: string) {
     .toFormat("yyyy-LL-dd HH:mm")
 }
 
+function recommendationQualityAssessment(
+  candidate: MockSimulationResult["scenarios"][number]["candidates"][number] | undefined,
+  targetTotal: number,
+) {
+  if (!candidate) return "No viable slot"
+
+  return formatScenarioQuality(
+    assessScenarioQuality({
+      score: candidate.eventAwareScore.total,
+      targetTurnout: candidate.eventAwareScore.targetTurnout,
+      targetTotal,
+      fairness: candidate.eventAwareScore.fairness,
+      timeFit: candidate.eventAwareScore.timeFit,
+      warningCount: candidate.warnings.length,
+    }),
+  )
+}
+
 export function simulationSummaryToCsv(result: MockSimulationResult) {
   const rows: unknown[][] = [
     [
       "scenario_id",
       "scenario_label",
       "quality",
+      "quality_assessment",
       "base_archetype",
       "target_tags",
       "best_start_local",
@@ -52,7 +72,8 @@ export function simulationSummaryToCsv(result: MockSimulationResult) {
     rows.push([
       scenario.id,
       scenario.label,
-      top ? recommendationQualityCsv(top.eventAwareScore.total, top.eventAwareScore.targetTurnout, top.eventAwareScore.broadTurnout) : "No viable slot",
+      top ? scenarioQualityLabel(top.eventAwareScore.total) : "No viable slot",
+      recommendationQualityAssessment(top, scenario.targetUserIds.length),
       scenario.archetype.label,
       scenario.targetTags.join(";"),
       top ? fmtLocal(top.startAt, result.org.timeZone) : "",
@@ -132,11 +153,4 @@ export function simulationCandidatesToCsv(result: MockSimulationResult) {
   }
 
   return rows.map(csvRow).join("\n") + "\n"
-}
-
-function recommendationQualityCsv(score: number, target: number, broad: number) {
-  if (score >= 0.8 && target >= 0.65) return "Strong"
-  if (score >= 0.65 && target >= 0.5) return "Usable"
-  if (score >= 0.5 || broad >= 0.5) return "Weak but possible"
-  return "Poor"
 }

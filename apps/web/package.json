@@ -12,7 +12,8 @@
     "test:e2e:run": "PLAYWRIGHT_TEST=1 playwright test",
     "test:e2e": "bash ../../scripts/run-local-e2e.sh",
     "simulate:mock": "tsx scripts/run-mock-simulation.ts",
-    "simulate:mock:compare": "tsx scripts/run-mock-simulation-comparison.ts"
+    "simulate:mock:compare": "tsx scripts/run-mock-simulation-comparison.ts",
+    "simulate:mock:comparison": "tsx scripts/run-mock-simulation-comparison.ts"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",

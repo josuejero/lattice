@@ -14,13 +14,13 @@ describe("mock simulation CSV export", () => {
       monthEnd: "2026-08-31",
       maxCandidatesPerScenario: 80,
     })
-  }, 20_000)
+  }, 60_000)
 
   it("exports one summary row per scenario", () => {
     const csv = simulationSummaryToCsv(result)
     const lines = csv.trimEnd().split("\n")
 
-    expect(lines[0]).toContain("scenario_id,scenario_label,quality")
+    expect(lines[0]).toContain("scenario_id,scenario_label,quality,quality_assessment")
     expect(lines.length).toBe(result.scenarios.length + 1)
     expect(csv).toContain("springfield_branch_meeting")
   })

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { z } from "zod"
+
 import { DateTime } from "luxon"
 
 import { prisma } from "@lattice/db"
@@ -18,33 +18,27 @@ import { loadSuggestionAvailabilityState } from "@/lib/suggestions/state"
 import { requireOrgAccess } from "@/lib/guards"
 import { parseHHMM } from "@/lib/availability/time"
 import { computeRequestKey, generateSuggestions } from "@/lib/suggestions/engine"
+import { EVENT_ARCHETYPES } from "@/lib/suggestions/event-archetypes"
+import { rankEventAwareCandidates } from "@/lib/suggestions/event-aware"
+import {
+  normalizeSuggestionRequestTargets,
+  SuggestionRequestInputSchema,
+} from "@/lib/suggestions/request-contract"
 import { env } from "@/lib/env"
 import type { Prisma } from "@prisma/client"
 
 export const runtime = "nodejs"
 
-const CreateSchema = z.object({
-  title: z.string().max(80).optional(),
-  timeZone: z.string().min(1),
-  rangeStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  rangeEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  durationMinutes: z.number().int().min(15).max(240),
-  stepMinutes: z.number().int().min(5).max(60).default(15),
-  dayStart: z.string().regex(/^\d{2}:\d{2}$/).default("08:00"),
-  dayEnd: z.string().regex(/^\d{2}:\d{2}$/).default("20:00"),
-  attendeeUserIds: z.array(z.string().min(1)).min(1),
-})
 
 const SUGGESTION_CACHE_TTL_SECONDS = env.NODE_ENV === "production" ? 240 : 60
+const EVENT_AWARE_BASE_CANDIDATE_LIMIT = 500
+const PERSISTED_CANDIDATE_LIMIT = 25
 
 type SuggestionsCacheEntry = {
   requestId: string
   candidateIds: string[]
 }
 
-function ensureSortedUnique(ids: string[]) {
-  return [...new Set(ids)].sort()
-}
 
 async function requireLeader(orgId: string) {
   return requireOrgAccess(orgId, { minRole: "LEADER" })
@@ -115,6 +109,23 @@ type HydratedSuggestionRequest = Prisma.SuggestionRequestGetPayload<{
  *                 type: string
  *               dayEnd:
  *                 type: string
+ *               eventArchetypeId:
+ *                 type: string
+ *                 enum:
+ *                   - general_meeting
+ *                   - committee_meeting
+ *                   - branch_meeting
+ *                   - orientation
+ *                   - training
+ *                   - canvass
+ *                   - phonebank
+ *                   - presentation
+ *                   - reading_group
+ *                   - festival
+ *               targetUserIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
  *               attendeeUserIds:
  *                 type: array
  *                 items:
@@ -210,9 +221,26 @@ async function handleCreateSuggestionRequest(
     )
   }
 
-  const body = CreateSchema.parse(await req.json())
+  const body = SuggestionRequestInputSchema.parse(await req.json())
 
-  const attendeeUserIds = ensureSortedUnique(body.attendeeUserIds)
+  const {
+    attendeeUserIds,
+    targetUserIds,
+    invalidTargetUserIds,
+  } = normalizeSuggestionRequestTargets(body)
+
+  const eventArchetypeId = body.eventArchetypeId
+  const archetype = EVENT_ARCHETYPES[eventArchetypeId]
+
+  if (invalidTargetUserIds.length > 0) {
+    return NextResponse.json(
+      fail(
+        ErrorCodes.VALIDATION_ERROR,
+        "targetUserIds must be a subset of attendeeUserIds",
+      ),
+      { status: 400 },
+    )
+  }
 
   const dayStartMinute = parseHHMM(body.dayStart)
   const dayEndMinute = parseHHMM(body.dayEnd)
@@ -242,6 +270,8 @@ async function handleCreateSuggestionRequest(
     dayStartMinute,
     dayEndMinute,
     attendeeUserIds,
+    eventArchetypeId,
+    targetUserIds,
   })
 
   const availabilityState = await loadSuggestionAvailabilityState({
@@ -322,6 +352,8 @@ async function handleCreateSuggestionRequest(
     stepMinutes: body.stepMinutes,
     dayStartMinute,
     dayEndMinute,
+    eventArchetypeId,
+    targetUserIds,
     dataFingerprint,
   }
 
@@ -333,7 +365,7 @@ async function handleCreateSuggestionRequest(
       data: requestPayload,
     })
   } else {
-    const generated = generateSuggestions({
+    const baseCandidates = generateSuggestions({
       timeZone: body.timeZone,
       rangeStart: body.rangeStart,
       rangeEnd: body.rangeEnd,
@@ -342,21 +374,43 @@ async function handleCreateSuggestionRequest(
       dayStartMinute,
       dayEndMinute,
       attendees,
-      maxCandidates: 25,
+      maxCandidates: EVENT_AWARE_BASE_CANDIDATE_LIMIT,
     })
 
+    const generated = rankEventAwareCandidates({
+      candidates: baseCandidates,
+      archetype,
+      targetUserIds,
+      timeZone: body.timeZone,
+    }).slice(0, PERSISTED_CANDIDATE_LIMIT)
+
     const candidatesCreate = generated.map((candidate) => ({
-      rank: candidate.rank,
+      rank: candidate.eventAwareRank,
       startAt: new Date(candidate.startAt),
       endAt: new Date(candidate.endAt),
       attendanceRatio: candidate.attendanceRatio,
-      scoreTotal: candidate.score.total,
+      scoreTotal: candidate.eventAwareScore.total,
       scoreAttendance: candidate.score.attendance,
       scoreInconvenience: candidate.score.inconvenience,
       scoreFairness: candidate.score.fairness,
       availableUserIds: candidate.availableUserIds,
       missingUserIds: candidate.missingUserIds,
-      explanation: candidate.explanation,
+      explanation: {
+        ...candidate.explanation,
+        eventAware: {
+          archetypeId: eventArchetypeId,
+          baseRank: candidate.rank,
+          baseScoreTotal: candidate.score.total,
+          targetTurnout: candidate.eventAwareScore.targetTurnout,
+          broadTurnout: candidate.eventAwareScore.broadTurnout,
+          timeFit: candidate.eventAwareScore.timeFit,
+          fairness: candidate.eventAwareScore.fairness,
+          inconvenience: candidate.eventAwareScore.inconvenience,
+          targetAvailableUserIds: candidate.targetAvailableUserIds,
+          targetMissingUserIds: candidate.targetMissingUserIds,
+          warnings: candidate.warnings,
+        },
+      },
     }))
 
     requestResult = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -424,7 +478,9 @@ async function handleCreateSuggestionRequest(
     targetId: hydrated.id,
     metadata: {
       requestKey,
+      eventArchetypeId,
       attendeeCount: attendeeUserIds.length,
+      targetCount: targetUserIds.length,
       candidateCount: hydrated.candidates.length,
       isRefresh: Boolean(existing),
     },
@@ -456,6 +512,12 @@ async function handleCreateSuggestionRequest(
         stepMinutes: hydrated.stepMinutes,
         dayStartMinute: hydrated.dayStartMinute,
         dayEndMinute: hydrated.dayEndMinute,
+        eventArchetypeId:
+          hydrated.eventArchetypeId ?? "general_meeting",
+        targetUserIds:
+          hydrated.targetUserIds.length > 0
+            ? hydrated.targetUserIds
+            : hydrated.attendees.map((item) => item.userId),
         attendeeUserIds: hydrated.attendees.map((item) => item.userId),
       },
       candidates: hydrated.candidates.map((candidate) => ({

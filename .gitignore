@@ -14,3 +14,5 @@ playwright-report
 tmp/mock-simulation/
 apps/web/test-results/
 apps/web/tmp/
+# Local and generated artifacts
+repomix-output.xml
