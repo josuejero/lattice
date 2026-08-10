@@ -11,6 +11,7 @@ jobs:
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       REDIS_URL: redis://localhost:6379
+      AUTH_SECRET: ci-build-auth-secret-not-for-production
     services:
       postgres:
         image: postgres:15
@@ -61,7 +62,7 @@ jobs:
         run: pnpm -C apps/web test tests/unit/openapi.test.ts
 
       - name: Build
-        run: pnpm -C apps/web test tests/unit/openapi.test.ts
+        run: pnpm -C apps/web build
 
   e2e:
     runs-on: ubuntu-latest

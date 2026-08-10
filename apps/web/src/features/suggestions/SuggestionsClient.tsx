@@ -185,6 +185,9 @@ export default function SuggestionsClient({ orgId, orgName }: { orgId: string; o
       return
     }
 
+    const nextArchetype =
+      EVENT_ARCHETYPES[nextId]
+
     const defaults =
       eventArchetypeFormDefaults(nextId)
 
