@@ -62,7 +62,7 @@ jobs:
         run: pnpm -C apps/web test tests/unit/openapi.test.ts
 
       - name: Build
-        run: pnpm -C apps/web build
+        run: pnpm -w build
 
   e2e:
     runs-on: ubuntu-latest
