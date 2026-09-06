@@ -10,14 +10,15 @@ Lattice is a privacy-conscious group scheduling application that combines recurr
 
 - Canonical repository: https://github.com/josuejero/lattice
 - Default branch: `master`
-- Accepted baseline at this handoff: `90d764a630cbef2e8ee00c1f57ebeba19c1a554a`
+- Accepted application/feature baseline at this handoff: `90d764a630cbef2e8ee00c1f57ebeba19c1a554a`
 - Baseline change: merged PR #3, `mock-event-simulation-20260705-203318`, integrating event-aware scheduling and simulation quality improvements.
+- Repository project-memory/documentation maintenance is layered on top of that feature baseline; do not assume the moving `master` HEAD is the same commit as the accepted application baseline or the deployed production SHA.
 - Last documented local checkout: `C:\Dev\Personal\Lattice` on Windows. Treat current local working-tree status as unknown until checked locally.
 - This file is the engineering continuation authority. `PROJECT_STATE.md` holds broader verified state; `OPEN_TASKS.md` holds outstanding work.
 
 ## Verified now
 
-- GitHub CI completed successfully for baseline SHA `90d764a`.
+- GitHub CI completed successfully for feature baseline SHA `90d764a`.
 - The repository contains the Next.js App Router application, Prisma/Postgres persistence and migrations, Redis support, Auth.js-backed authentication, organization-scoped authorization, availability templates/overrides, events, suggestions, audit surfaces, Google Calendar integration, tests, and simulation tooling.
 - Google Calendar integration currently supports calendar discovery/selection, free/busy synchronization into Lattice busy blocks, and feature-flagged creation of confirmed Lattice events in the connected user's primary Google Calendar.
 - Calendar writeback records pending/success/error state and external event identifiers. No Google Calendar event update/delete implementation was verified in the current source.
@@ -27,11 +28,11 @@ Lattice is a privacy-conscious group scheduling application that combines recurr
 
 ## Current limitation / blocker
 
-The repository and CI prove the merged source state, but this audit could not independently prove that the current production deployment is running baseline SHA `90d764a`, nor locate a durable production/provider acceptance record for that merged state.
+The repository and CI prove the accepted source state, but this audit could not independently identify the Git SHA currently served by production or prove that production contains feature baseline `90d764a`. It also did not locate a durable production/provider acceptance record for that merged feature state.
 
 ## Exact next action
 
-Verify the deployed Lattice environment against `master` SHA `90d764a` and run a bounded release acceptance pass covering the important current flows: authentication/org scoping, availability and suggestions, event confirmation, Google Calendar free/busy sync, and synthetic/test-event Calendar writeback. Record the environment, Git SHA, date, result, and any failures. Preserve only milestone-level evidence outside Git when it adds archival value.
+Identify the Git SHA currently deployed to the Lattice production environment and determine whether it contains accepted feature baseline `90d764a`. Then run a bounded release acceptance pass covering the important current flows: authentication/org scoping, availability and suggestions, event confirmation, Google Calendar free/busy sync, and synthetic/test-event Calendar writeback. Record the environment, deployed Git SHA, date, result, and any failures. Preserve only milestone-level evidence outside Git when it adds archival value.
 
 ## Do not repeat
 
