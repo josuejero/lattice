@@ -8,12 +8,13 @@ This file tracks current actionable engineering/project work. It is not a chrono
 
 Status: OPEN
 
-Verify the deployed Lattice environment against accepted `master` baseline `90d764a630cbef2e8ee00c1f57ebeba19c1a554a`.
+Identify the Git SHA currently deployed to the Lattice production environment and determine whether it contains accepted application/feature baseline `90d764a630cbef2e8ee00c1f57ebeba19c1a554a`. Do not assume the deployed SHA equals the current `master` HEAD; documentation/project-memory maintenance can advance `master` without changing application behavior.
 
 Acceptance evidence should record:
 
 - environment and URL;
 - deployed Git SHA where the provider exposes it;
+- whether that SHA contains the accepted feature baseline;
 - date/time;
 - authentication and organization-scoping smoke result;
 - availability/suggestion smoke result;
@@ -43,7 +44,7 @@ Expected outcome: either retain the current scopes with a documented rationale o
 Status: OPEN
 Dependency: P0 may satisfy most of this if the same acceptance pass is used.
 
-The repository has deterministic unit/property/simulation tooling and green CI for the merged event-aware work, but this audit did not locate a durable release-level report tied to the accepted baseline. For the next meaningful release, preserve a concise report with Git SHA, environment, scenario/corpus, result, and any material fairness/time-zone findings. Keep ordinary simulation outputs in Git/CI rather than Drive.
+The repository has deterministic unit/property/simulation tooling and green CI for the merged event-aware work, but this audit did not locate a durable release-level report tied to the accepted feature baseline. For the next meaningful release, preserve a concise report with Git SHA, environment, scenario/corpus, result, and any material fairness/time-zone findings. Keep ordinary simulation outputs in Git/CI rather than Drive.
 
 ## P2 — create ADRs only when a consequential decision occurs
 
