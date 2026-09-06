@@ -10,11 +10,11 @@ Lattice is implemented as a multi-tenant scheduling web application. The current
 
 - Repository: `josuejero/lattice`
 - Default branch: `master`
-- Accepted baseline at this update: `90d764a630cbef2e8ee00c1f57ebeba19c1a554a`
-- Latest merged work: PR #3, event-aware scheduling and simulation quality improvements.
-- CI: successful for the accepted baseline.
+- Accepted application/feature baseline at this update: `90d764a630cbef2e8ee00c1f57ebeba19c1a554a`.
+- Latest application feature merge: PR #3, event-aware scheduling and simulation quality improvements. Repository project-memory/documentation maintenance follows that feature baseline on `master`.
+- CI: successful for the accepted feature baseline; the project-memory/documentation maintenance change also passed the repository build and Playwright E2E workflow before merge.
 - Hosting: Vercel is wired to the repository; the repository advertises `https://lattice-web-mauve.vercel.app/` as the live site.
-- Production SHA equivalence: not independently verified in the 2026-09-05 audit.
+- Production SHA equivalence: not independently verified in the 2026-09-05 audit. Do not infer the deployed SHA from the current moving `master` HEAD.
 
 ## Application architecture
 
