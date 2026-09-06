@@ -6,6 +6,16 @@
 
 Privacy-respecting scheduling for groups and teams that need to coordinate without sacrificing control or trust.
 
+## Project memory
+
+For engineering continuation, read these in order as needed:
+
+- `HANDOFF.md` — what is true now, current blocker, and exact next action.
+- `PROJECT_STATE.md` — broader verified implementation and environment state.
+- `OPEN_TASKS.md` — current actionable outstanding work.
+
+These repository files are authoritative for engineering continuation. Google Drive provides cross-system navigation, product research, external evidence, milestone release evidence, and historical handoffs; it does not maintain synchronized copies of repository state.
+
 ## What makes this project special
 
 - **Privacy-first defaults** – calendars, availability, and suggestions are never exposed unless explicitly shared; encryption helpers keep tokens secure when enabled.
@@ -64,15 +74,15 @@ If you ever need to run Prisma directly (e.g. `prisma migrate deploy` for a prod
 - `apps/web` – Next.js + App Router powering the public UI, API handling, and auth routes.
 - `packages/db` – Prisma schema, migrations, and helpers for database access. The `package.json` exposes Prisma commands consumed by the root scripts.
 - `packages/shared` – shared types, environment validation logic, and helpers that keep backend and frontend in sync.
-- `docs/` – architectural decisions, API surface, fairness engine notes, and the threat model for decisions requiring context.
+- `docs/` – architecture, API notes, fairness design, threat modeling, and ADRs.
 
 ## Documentation
 
 - `docs/api.md` – API surface and contract expectations.
 - `docs/architecture.md` – overall system design, data flow, and service boundaries.
-- `docs/fairness-engine.md` – rationale and mathematics behind the suggestion ranking strategy.
-- `docs/threat-model.md` – security assumptions, mitigations, and adversary models for scheduling data.
-- `docs/adr/` – architectural decision records that capture why big choices were made.
+- `docs/fairness-engine.md` – current fairness and event-aware ranking design.
+- `docs/threat-model.md` – security assets, trust boundaries, threats, mitigations, and validation needs.
+- `docs/adr/` – architectural decision records for consequential decisions.
 
 ## Contributing & support
 
