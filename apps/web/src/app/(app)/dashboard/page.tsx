@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { setActiveOrgId, getActiveOrgId } from "@/lib/org-context";
 import { env } from "@/lib/env";
+import { slugify } from "@/lib/slugify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,10 +41,13 @@ export default async function Dashboard() {
     const name = String(formData.get("name") ?? "").trim();
     if (name.length < 2) return;
 
+    const base = slugify(name) || "org";
+    const slug = await allocateUniqueSlug(base);
+
     const org = await prisma.org.create({
       data: {
         name,
-        slug: name.toLowerCase().replace(/\W+/g, "-").replace(/(^-|-$)/g, ""),
+        slug,
         members: { create: { userId, role: "OWNER" } },
       },
       select: { id: true, slug: true },
@@ -195,4 +199,20 @@ export default async function Dashboard() {
       </section>
     </main>
   );
+}
+
+async function allocateUniqueSlug(base: string) {
+  let slug = base;
+
+  for (let i = 0; i < 20; i++) {
+    const existing = await prisma.org.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+
+    if (!existing) return slug;
+    slug = `${base}-${i + 2}`;
+  }
+
+  throw new Error("could_not_allocate_slug");
 }
